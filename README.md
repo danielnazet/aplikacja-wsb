@@ -9,6 +9,12 @@ Currently, two official plugins are available:
 
 
 // MOJE PRZEMYSLENIA I FUNKCJE: 
+DATA BASE USERS:
+Admin: admin@example.com / admin123
+Foreman: foreman@example.com / foreman123
+Worker: worker@example.com / worker123
+
+
 1. Sekcja Statystyk i Kluczowych Wskaźników Wydajności (KPI)
 Produkcja na dziś: Ilość wyprodukowanych jednostek w ciągu dnia.
 Cele vs. rzeczywistość: Wykres słupkowy porównujący planowaną produkcję z rzeczywistą.
