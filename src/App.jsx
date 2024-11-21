@@ -1,25 +1,29 @@
 import "./index.css";
 
 import Sidebar from "./components/sidebar";
-import Header from "./components/header";
+import Navbar from "./components/navbar";
 import Dashboard from "./components/dashboard";
 import Footer from "./components/footer";
+import { useState } from "react";
 
 function App() {
+	const [sidebarOpen, setSidebarOpen] = useState(true);
+
+	const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
 	return (
-		<div className="grid grid-cols-layout">
-			<header className=" shadow col-span-2">
-				<Header />
-			</header>
-			<aside className="bg-gray-800 text-white">
-				<Sidebar />
-			</aside>
-			<section className="bg-gray-50 p-6">
-				<Dashboard />
-			</section>
-			<footer className="bg-gray-100 text-center col-span-2 p-4">
-				<Footer />
-			</footer>
+		<div className="min-h-screen bg-base-200">
+			<Navbar onToggleSidebar={toggleSidebar} />
+
+			<div className="flex">
+				<Sidebar isOpen={sidebarOpen} />
+
+				{/* Main Content */}
+				<main className="flex-1 lg:ml-[280px]">
+					<Dashboard />
+				</main>
+			</div>
+			<Footer />
 		</div>
 	);
 }
