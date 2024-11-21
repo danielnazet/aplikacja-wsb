@@ -6,7 +6,7 @@ function Navbar({ onToggleSidebar }) {
 	const logout = useAuthStore((state) => state.logout);
 
 	return (
-		<div className="navbar bg-base-100 shadow-lg">
+		<div className="navbar bg-base-100 shadow-lg h-16">
 			<div className="flex-none lg:hidden">
 				<button
 					className="btn btn-square btn-ghost"
@@ -29,7 +29,7 @@ function Navbar({ onToggleSidebar }) {
 			</div>
 			<div className="flex-1">
 				<a className="btn btn-ghost normal-case text-xl">
-					S & D - Production Dashboard
+					S & D - Dashboard
 				</a>
 			</div>
 			<div className="flex-none gap-2">

@@ -1,17 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./index.css";
-import Sidebar from "./components/sidebar";
-import Navbar from "./components/navbar";
-import Dashboard from "./components/dashboard";
-import LoginForm from "./components/loginForm";
+import Sidebar from "./components/Sidebar";
+import Navbar from "./components/Navbar";
+import Dashboard from "./components/Dashboard";
+import LoginForm from "./components/LoginForm";
 import useAuthStore from "./lib/store";
-import Foooter from "./components/footer";
+import EmployeeManagement from "./components/EmployeeManagement";
+import SavingsProjects from "./components/SavingsProjects";
 
 function App() {
-	const [sidebarOpen, setSidebarOpen] = useState(true);
+	const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
+	const [currentView, setCurrentView] = useState("dashboard");
 	const user = useAuthStore((state) => state.user);
 
-	const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+	// Handle browser back button
+	useEffect(() => {
+		const handlePopState = () => {
+			if (user) {
+				setCurrentView("dashboard");
+			}
+		};
+
+		window.addEventListener("popstate", handlePopState);
+		return () => window.removeEventListener("popstate", handlePopState);
+	}, [user]);
+
+	// Handle screen resize
+	useEffect(() => {
+		const handleResize = () => {
+			setSidebarOpen(window.innerWidth >= 1024);
+		};
+
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
 
 	if (!user) {
 		return (
@@ -21,20 +43,39 @@ function App() {
 		);
 	}
 
+	const renderContent = () => {
+		switch (currentView) {
+			case "employees":
+				return user.role === "admin" ? (
+					<EmployeeManagement />
+				) : (
+					<Dashboard />
+				);
+			case "savings":
+				return <SavingsProjects />;
+			default:
+				return <Dashboard />;
+		}
+	};
+
 	return (
 		<div className="min-h-screen bg-base-200">
-			<div className="flex flex-col h-screen">
-				<Navbar onToggleSidebar={toggleSidebar} />
+			<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
-				<div className="flex flex-1 overflow-hidden">
-					<Sidebar isOpen={sidebarOpen} />
+			<div className="flex">
+				<Sidebar
+					isOpen={sidebarOpen}
+					onNavigate={setCurrentView}
+					currentView={currentView}
+				/>
 
-					{/* Main Content */}
-					<main className="flex-1 overflow-auto lg:ml-[280px]">
-						<Dashboard />
-					</main>
-				</div>
-				<Foooter />
+				<main
+					className={`flex-1 p-4 transition-all duration-300 ${
+						sidebarOpen ? "lg:ml-[280px]" : ""
+					}`}
+				>
+					{renderContent()}
+				</main>
 			</div>
 		</div>
 	);
