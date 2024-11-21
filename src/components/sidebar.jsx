@@ -180,14 +180,11 @@ function Sidebar({ isOpen }) {
 					<div className="flex items-center gap-3">
 						<div className="avatar">
 							<div className="w-10 rounded-full">
-								<img
-									src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg"
-									alt="Profile"
-								/>
+								<img src="" alt="Profile" />
 							</div>
 						</div>
 						<div>
-							<p className="font-semibold">John Doe</p>
+							<p className="font-semibold">Daniel Zaniewski</p>
 							<p className="text-sm text-base-content/70">
 								Admin
 							</p>
