@@ -2,31 +2,19 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useAuthStore from "../lib/store";
+import { dbOperations } from "../lib/db";
 
+// Form validation schema
 const schema = z.object({
 	email: z.string().email(),
 	password: z.string().min(6),
 });
 
-// Mock user database - in a real app, this would be in your backend
-const USERS = [
-	{ id: 1, email: "admin@example.com", password: "admin123", role: "admin" },
-	{
-		id: 2,
-		email: "foreman@example.com",
-		password: "foreman123",
-		role: "foreman",
-	},
-	{
-		id: 3,
-		email: "worker@example.com",
-		password: "worker123",
-		role: "worker",
-	},
-];
-
 export default function LoginForm() {
+	// Get setUser function from auth store
 	const setUser = useAuthStore((state) => state.setUser);
+
+	// Initialize form with validation
 	const {
 		register,
 		handleSubmit,
@@ -36,25 +24,33 @@ export default function LoginForm() {
 		resolver: zodResolver(schema),
 	});
 
-	const onSubmit = (data) => {
-		const user = USERS.find(
-			(u) => u.email === data.email && u.password === data.password
-		);
+	// Handle form submission
+	const onSubmit = async (data) => {
+		try {
+			// Attempt to get user from database
+			const user = await dbOperations.getUserByEmail(data.email);
 
-		if (user) {
-			setUser({ id: user.id, email: user.email, role: user.role });
-		} else {
+			// Verify credentials
+			if (user && user.password === data.password) {
+				// Set user in auth store (excluding password)
+				const { password, ...userWithoutPassword } = user;
+				setUser(userWithoutPassword);
+			} else {
+				setError("root", {
+					message: "Invalid credentials",
+				});
+			}
+		} catch (error) {
+			console.error("Login failed:", error);
 			setError("root", {
-				message: "Invalid credentials",
+				message: "Login failed. Please try again.",
 			});
 		}
 	};
 
 	return (
 		<div className="max-w-md w-full mx-auto p-6 bg-base-100 rounded-lg shadow-xl">
-			<h2 className="text-2xl font-bold text-center mb-6">
-				Login to S&D Dashboard:
-			</h2>
+			<h2 className="text-2xl font-bold text-center mb-6">Login</h2>
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 				<div>
 					<label className="label">
@@ -81,7 +77,6 @@ export default function LoginForm() {
 						type="password"
 						{...register("password")}
 						className="input input-bordered w-full"
-						placeholder="Enter your password"
 					/>
 					{errors.password && (
 						<span className="text-error text-sm">

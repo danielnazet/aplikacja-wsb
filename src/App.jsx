@@ -7,6 +7,8 @@ import LoginForm from "./components/LoginForm";
 import useAuthStore from "./lib/store";
 import EmployeeManagement from "./components/EmployeeManagement";
 import SavingsProjects from "./components/SavingsProjects";
+import TaskManagement from "./components/TaskManagement";
+import Footer from "./components/Footer";
 
 function App() {
 	const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
@@ -37,8 +39,11 @@ function App() {
 
 	if (!user) {
 		return (
-			<div className="min-h-screen bg-base-200 flex items-center justify-center">
-				<LoginForm />
+			<div className="min-h-screen bg-base-200 flex flex-col">
+				<div className="flex-1 flex items-center justify-center">
+					<LoginForm />
+				</div>
+				<Footer className="relative z-50" />
 			</div>
 		);
 	}
@@ -53,16 +58,18 @@ function App() {
 				);
 			case "savings":
 				return <SavingsProjects />;
+			case "tasks":
+				return <TaskManagement />;
 			default:
 				return <Dashboard />;
 		}
 	};
 
 	return (
-		<div className="min-h-screen bg-base-200">
+		<div className="min-h-screen bg-base-200 flex flex-col">
 			<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
-			<div className="flex">
+			<div className="flex-1 flex relative">
 				<Sidebar
 					isOpen={sidebarOpen}
 					onNavigate={setCurrentView}
@@ -74,9 +81,19 @@ function App() {
 						sidebarOpen ? "lg:ml-[280px]" : ""
 					}`}
 				>
-					{renderContent()}
+					<div className="mb-16">
+						{" "}
+						{/* Add margin bottom to prevent content from being hidden by footer */}
+						{renderContent()}
+					</div>
 				</main>
 			</div>
+
+			<Footer
+				className={`relative z-50 ${
+					sidebarOpen ? "lg:ml-[280px]" : ""
+				}`}
+			/>
 		</div>
 	);
 }
