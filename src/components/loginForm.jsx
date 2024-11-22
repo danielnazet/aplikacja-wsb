@@ -77,6 +77,7 @@ export default function LoginForm() {
 						type="password"
 						{...register("password")}
 						className="input input-bordered w-full"
+						placeholder="Enter your password"
 					/>
 					{errors.password && (
 						<span className="text-error text-sm">

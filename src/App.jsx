@@ -8,7 +8,7 @@ import useAuthStore from "./lib/store";
 import EmployeeManagement from "./components/EmployeeManagement";
 import SavingsProjects from "./components/SavingsProjects";
 import TaskManagement from "./components/TaskManagement";
-import Footer from "./components/Footer";
+import Footer from "./components/footer";
 
 function App() {
 	const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
@@ -90,8 +90,8 @@ function App() {
 			</div>
 
 			<Footer
-				className={`relative z-50 ${
-					sidebarOpen ? "lg:ml-[280px]" : ""
+				className={`relative ${
+					sidebarOpen ? "lg:ml-[0px]" : ""
 				}`}
 			/>
 		</div>
