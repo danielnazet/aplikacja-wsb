@@ -1,5 +1,5 @@
 import React from "react";
-import useAuthStore from "../lib/store";
+import { useAuthStore, useStore } from "../lib/store";
 
 const AdminDashboard = () => (
 	<div className="p-6">

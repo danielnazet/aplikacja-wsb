@@ -1,5 +1,5 @@
 import React from "react";
-import useAuthStore from "../lib/store";
+import { useAuthStore, useStore } from "../lib/store";
 
 function Navbar({ onToggleSidebar }) {
 	const user = useAuthStore((state) => state.user);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import useAuthStore from "../lib/store";
+import { useAuthStore, useStore } from "../lib/store";
 import { dbOperations } from "../lib/db";
 
 export default function SavingsProjects() {

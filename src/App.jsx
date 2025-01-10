@@ -4,7 +4,7 @@ import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 import Dashboard from "./components/Dashboard";
 import LoginForm from "./components/LoginForm";
-import useAuthStore from "./lib/store";
+import { useAuthStore, useStore } from "./lib/store";
 import EmployeeManagement from "./components/EmployeeManagement";
 import SavingsProjects from "./components/SavingsProjects";
 import TaskManagement from "./components/TaskManagement";
@@ -13,7 +13,13 @@ import Footer from "./components/footer";
 function App() {
 	const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
 	const [currentView, setCurrentView] = useState("dashboard");
-	const user = useAuthStore((state) => state.user);
+	const { user, setUser, logout } = useAuthStore();
+	const { users, fetchUsers } = useStore();
+
+	// Fetch users on component mount and user change
+	useEffect(() => {
+		fetchUsers();
+	}, [fetchUsers]);
 
 	// Handle browser back button
 	useEffect(() => {
@@ -90,9 +96,7 @@ function App() {
 			</div>
 
 			<Footer
-				className={`relative ${
-					sidebarOpen ? "lg:ml-[0px]" : ""
-				}`}
+				className={`relative ${sidebarOpen ? "lg:ml-[0px]" : ""}`}
 			/>
 		</div>
 	);

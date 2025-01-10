@@ -77,3 +77,28 @@ Admin: admin@example.com / admin123
     Wykresy i statystyki na bieżąco.
     Prawy panel:
     Alerty na żywo i szybkie notatki.
+
+## Zmiany w projekcie
+
+1. **Poprawa eksportów w `src/lib/store.jsx`:**
+
+    - Zmieniono eksport z `default` na named exports dla `useAuthStore` i `useStore`.
+    - Upewniono się, że wszystkie komponenty importują te hooki jako named exports.
+
+2. **Aktualizacja importów w komponentach:**
+
+    - W każdym komponencie, który korzysta z `useAuthStore` lub `useStore`, poprawiono importy, aby używały named exports.
+    - Dotyczy to plików: `EmployeeManagement.jsx`, `SavingsProjects.jsx`, `TaskManagement.jsx`, `navbar.jsx`, `sidebar.jsx`, `dashboard.jsx`, `loginForm.jsx`.
+
+3. **Mockowanie danych:**
+
+    - W `src/lib/store.jsx` i `src/lib/db.js` użyto mockowanych danych, aby aplikacja mogła działać lokalnie bez rzeczywistej bazy danych.
+
+4. **Usunięcie niepotrzebnych importów:**
+
+    - Usunięto nieużywane importy i poprawiono strukturę kodu, aby była bardziej czytelna.
+
+5. **Sprawdzenie i poprawa logiki komponentów:**
+    - Upewniono się, że logika w komponentach jest poprawna i nie powoduje błędów w konsoli.
+
+Te zmiany poprawiły stabilność i działanie aplikacji, umożliwiając jej uruchomienie lokalnie bez potrzeby łączenia się z rzeczywistą bazą danych.

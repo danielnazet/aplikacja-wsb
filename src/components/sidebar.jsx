@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import useAuthStore from "../lib/store";
+import { useAuthStore, useStore } from "../lib/store";
 
 function Sidebar({ isOpen, onNavigate, currentView }) {
 	const [activeDropdown, setActiveDropdown] = useState(null);
