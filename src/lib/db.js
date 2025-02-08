@@ -20,17 +20,28 @@ const client = createClient({
 const mockUsers = [
 	{
 		id: "1",
-		email: "user1@example.com",
+		email: "admin@example.com",
 		firstName: "User",
 		lastName: "One",
 		role: "admin",
+		password: "admin123",
 	},
 	{
 		id: "2",
-		email: "user2@example.com",
+		email: "worker@example.com",
 		firstName: "User",
 		lastName: "Two",
 		role: "worker",
+		password: "worker123",
+	},
+	{
+		id: "3",
+		email: "foreman@example.com",
+		firstName: "User",
+		lastName: "Three",
+		role: "foreman",
+		password: "foreman123",
+
 	},
 ];
 
@@ -41,5 +52,10 @@ export const dbOperations = {
 			setTimeout(() => resolve(mockUsers), 1000); // Symulacja opóźnienia
 		});
 	},
-	// Dodaj inne operacje, jeśli potrzebne
+	async getUserByEmail(email) {
+		return new Promise((resolve) => {
+			const user = mockUsers.find((user) => user.email === email);
+			setTimeout(() => resolve(user), 1000); // Symulacja opóźnienia
+		});
+	},
 };

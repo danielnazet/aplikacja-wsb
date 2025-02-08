@@ -29,7 +29,7 @@ function Navbar({ onToggleSidebar }) {
 			</div>
 			<div className="flex-1">
 				<a className="btn btn-ghost normal-case text-xl">
-					S & D - Dashboard
+					Production Dashboard
 				</a>
 			</div>
 			<div className="flex-none gap-2">

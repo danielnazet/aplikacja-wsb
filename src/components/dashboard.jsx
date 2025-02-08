@@ -1,9 +1,75 @@
 import React from "react";
 import { useAuthStore, useStore } from "../lib/store";
+import KPISection from "./KPISection";
+import MachineStatus from "./MachineStatus";
+
+// Mockowane dane KPI
+const mockKPIData = {
+	dailyProduction: 1250,
+	productionTrend: 15,
+	oeePercentage: 78,
+	downtimeHours: 2.5,
+	targetCompletion: 85,
+	remainingUnits: 450,
+	productionComparison: [
+		{ label: "Pon", actual: 800, target: 1000 },
+		{ label: "Wt", actual: 950, target: 1000 },
+		{ label: "Śr", actual: 1100, target: 1000 },
+		{ label: "Czw", actual: 920, target: 1000 },
+		{ label: "Pt", actual: 1050, target: 1000 },
+	],
+};
+
+// Mockowane dane maszyn
+const mockMachinesData = [
+	{
+		id: 1,
+		name: "Prasa hydrauliczna #1",
+		status: "working",
+		description: "Główna prasa produkcyjna - linia A",
+		operator: "Jan Kowalski",
+		lastService: "2024-02-15",
+	},
+	{
+		id: 2,
+		name: "Frezarka CNC #2",
+		status: "service",
+		description: "Frezarka do elementów precyzyjnych",
+		operator: "Anna Nowak",
+		lastService: "2024-03-01",
+	},
+	{
+		id: 3,
+		name: "Robot spawalniczy #1",
+		status: "failure",
+		description: "Robot spawalniczy - linia B",
+		operator: "Piotr Wiśniewski",
+		lastService: "2024-02-28",
+		failureReason: "Awaria układu sterowania",
+	},
+	{
+		id: 4,
+		name: "Tokarka #3",
+		status: "working",
+		description: "Tokarka do elementów średnich",
+		operator: "Marek Lewandowski",
+		lastService: "2024-02-20",
+	},
+	{
+		id: 5,
+		name: "Giętarka #2",
+		status: "working",
+		description: "Giętarka do profili stalowych",
+		operator: "Karolina Zielińska",
+		lastService: "2024-02-25",
+	},
+];
 
 const AdminDashboard = () => (
 	<div className="p-6">
 		<h2 className="text-2xl font-bold mb-4">Admin Dashboard</h2>
+		<KPISection data={mockKPIData} />
+		<MachineStatus machines={mockMachinesData} />
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 			<div className="card bg-base-100 shadow-xl">
 				<div className="card-body">
@@ -43,6 +109,8 @@ const AdminDashboard = () => (
 const ForemanDashboard = () => (
 	<div className="p-6">
 		<h2 className="text-2xl font-bold mb-4">Foreman Dashboard</h2>
+		<KPISection data={mockKPIData} />
+		<MachineStatus machines={mockMachinesData} />
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 			<div className="card bg-base-100 shadow-xl">
 				<div className="card-body">
@@ -69,6 +137,7 @@ const ForemanDashboard = () => (
 const WorkerDashboard = () => (
 	<div className="p-6">
 		<h2 className="text-2xl font-bold mb-4">Worker Dashboard</h2>
+		<KPISection data={mockKPIData} />
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 			<div className="card bg-base-100 shadow-xl">
 				<div className="card-body">
