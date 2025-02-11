@@ -2,6 +2,7 @@ import React from "react";
 import { useAuthStore, useStore } from "../lib/store";
 import KPISection from "./KPISection";
 import MachineStatus from "./MachineStatus";
+import { Link } from "react-router-dom";
 
 // Mockowane dane KPI
 const mockKPIData = {
@@ -76,9 +77,9 @@ const AdminDashboard = () => (
 					<h3 className="card-title">User Management</h3>
 					<p>Manage user accounts and permissions</p>
 					<div className="card-actions justify-end">
-						<button className="btn btn-primary">
+						<Link to="/employees" className="btn btn-primary">
 							Manage Users
-						</button>
+						</Link>
 					</div>
 				</div>
 			</div>

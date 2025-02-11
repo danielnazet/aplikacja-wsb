@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
 import "./index.css";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
@@ -293,29 +294,14 @@ const mockAnalyticsData = {
 
 function App() {
 	const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
-	const [currentView, setCurrentView] = useState("dashboard");
-	const { user, setUser, logout } = useAuthStore();
-	const { users, fetchUsers } = useStore();
+	const { user } = useAuthStore();
+	const { fetchUsers } = useStore();
 	const [alerts, setAlerts] = useState(initialAlerts);
 
-	// Fetch users on component mount and user change
 	useEffect(() => {
 		fetchUsers();
 	}, [fetchUsers]);
 
-	// Handle browser back button
-	useEffect(() => {
-		const handlePopState = () => {
-			if (user) {
-				setCurrentView("dashboard");
-			}
-		};
-
-		window.addEventListener("popstate", handlePopState);
-		return () => window.removeEventListener("popstate", handlePopState);
-	}, [user]);
-
-	// Handle screen resize
 	useEffect(() => {
 		const handleResize = () => {
 			setSidebarOpen(window.innerWidth >= 1024);
@@ -336,100 +322,43 @@ function App() {
 		);
 	}
 
-	const renderContent = () => {
-		switch (currentView) {
-			case "employees":
-				return user.role === "admin" ? (
-					<EmployeeManagement />
-				) : (
-					<Dashboard />
-				);
-			case "savings":
-				return <SavingsProjects />;
-			case "tasks":
-				return <TaskManagement />;
-			case "kpi":
-				return (
-					<div className="p-6">
-						<h2 className="text-2xl font-bold mb-4">KPI Dashboard</h2>
-						<KPISection data={mockKPIData} />
-					</div>
-				);
-			case "machines":
-				return (
-					<div className="p-6">
-						<h2 className="text-2xl font-bold mb-4">Stan Maszyn</h2>
-						<MachineStatus machines={mockMachinesData} />
-					</div>
-				);
-			case "schedule":
-				return (
-					<div className="p-6">
-						<h2 className="text-2xl font-bold mb-4">Harmonogram Produkcji</h2>
-						<ProductionSchedule scheduleData={mockScheduleData} />
-					</div>
-				);
-			case "attendance":
-				return (
-					<div className="p-6">
-						<h2 className="text-2xl font-bold mb-4">Monitorowanie Pracowników</h2>
-						<EmployeeAttendance attendanceData={mockAttendanceData} />
-					</div>
-				);
-			case "quality":
-				return (
-					<div className="p-6">
-						<h2 className="text-2xl font-bold mb-4">Śledzenie Jakości</h2>
-						<QualityTracking qualityData={mockQualityData} />
-					</div>
-				);
-			case "analytics":
-				return (
-					<div className="p-6">
-						<h2 className="text-2xl font-bold mb-4">Analizy i Raporty</h2>
-						<AnalyticsModule analyticsData={mockAnalyticsData} />
-					</div>
-				);
-			default:
-				return <Dashboard />;
-		}
-	};
-
 	const handleDismissAlert = (alertId) => {
 		setAlerts(alerts.filter(alert => alert.id !== alertId));
 	};
 
 	return (
-		<div className="min-h-screen bg-base-200 flex flex-col">
-			<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-
-			<div className="flex-1 flex relative">
-				<Sidebar
-					isOpen={sidebarOpen}
-					onNavigate={setCurrentView}
-					currentView={currentView}
+		<div className="min-h-screen bg-base-200">
+			<div className="drawer lg:drawer-open">
+				<input 
+					id="my-drawer-2" 
+					type="checkbox" 
+					className="drawer-toggle" 
+					checked={sidebarOpen}
+					onChange={(e) => setSidebarOpen(e.target.checked)}
 				/>
-
-				<main
-					className={`flex-1 p-4 transition-all duration-300 ${
-						sidebarOpen ? "lg:ml-[280px]" : ""
-					}`}
-				>
-					<div className="mb-16">
-						{" "}
-						{/* Add margin bottom to prevent content from being hidden by footer */}
-						{renderContent()}
-					</div>
-				</main>
-
-				<AlertSystem 
-					alerts={alerts}
-					onDismiss={handleDismissAlert}
-				/>
+				<div className="drawer-content flex flex-col">
+					<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+					<main className="flex-1 overflow-y-auto bg-base-200 pt-4">
+						<Routes>
+							<Route path="/" element={<Dashboard />} />
+							<Route path="/employees" element={<EmployeeManagement />} />
+							<Route path="/savings" element={<SavingsProjects />} />
+							<Route path="/tasks" element={<TaskManagement />} />
+							<Route path="/kpi" element={<KPISection data={mockKPIData} />} />
+							<Route path="/machines" element={<MachineStatus machines={mockMachinesData} />} />
+							<Route path="/schedule" element={<ProductionSchedule scheduleData={mockScheduleData} />} />
+							<Route path="/attendance" element={<EmployeeAttendance attendanceData={mockAttendanceData} />} />
+							<Route path="/quality" element={<QualityTracking qualityData={mockQualityData} />} />
+							<Route path="/analytics" element={<AnalyticsModule analyticsData={mockAnalyticsData} />} />
+						</Routes>
+					</main>
+					<Footer />
+				</div>
+				<Sidebar isOpen={sidebarOpen} />
 			</div>
-
-			<Footer
-				className={`relative ${sidebarOpen ? "lg:ml-[0px]" : ""}`}
+			<AlertSystem 
+				alerts={alerts}
+				onDismiss={handleDismissAlert}
 			/>
 		</div>
 	);
