@@ -1,129 +1,102 @@
-import { createClient } from "@libsql/client";
+import { createClient } from '@supabase/supabase-js';
 
-// Użyj lokalnego URL
-const DB_URL = "http://localhost:5000";
-const DB_AUTH_TOKEN = ""; // Jeśli nie potrzebujesz tokena, pozostaw puste
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!DB_URL) {
-	throw new Error(
-		"Database configuration missing. Please check your configuration."
-	);
+if (!supabaseUrl || !supabaseKey) {
+	throw new Error('Brak konfiguracji Supabase. Sprawdź zmienne środowiskowe.');
 }
 
-// Create database client
-const client = createClient({
-	url: DB_URL,
-	authToken: DB_AUTH_TOKEN,
-});
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Funkcja testowa do sprawdzenia połączenia
+export async function testConnection() {
+	try {
+		// Sprawdź połączenie przez pobranie liczby użytkowników
+		const { data, error } = await supabase
+			.from('users')
+			.select('*', { count: 'exact' });
+			
+		if (error) {
+			console.error('Błąd połączenia z Supabase:', error);
+			return false;
+		}
+		
+		console.log('Połączenie z Supabase działa poprawnie!');
+		console.log(`Liczba użytkowników w bazie: ${data.length}`);
+		return true;
+	} catch (error) {
+		console.error('Nieoczekiwany błąd:', error);
+		return false;
+	}
+}
 
 export const dbOperations = {
 	async getAllUsers() {
-		try {
-			const result = await client.execute('SELECT * FROM users');
-			return result.rows;
-		} catch (error) {
-			console.error("Database error:", error);
-			throw error;
-		}
+		const { data, error } = await supabase
+			.from('users')
+			.select('*');
+			
+		if (error) throw error;
+		return data;
 	},
 
 	async getUserByEmail(email) {
-		try {
-			const result = await client.execute({
-				sql: 'SELECT * FROM users WHERE email = ?',
-				args: [email]
-			});
-			return result.rows[0];
-		} catch (error) {
-			console.error("Database error:", error);
-			throw error;
-		}
+		const { data, error } = await supabase
+			.rpc('get_user_by_email', { user_email: email });
+			
+		if (error) throw error;
+		return data[0];
 	},
 
 	async addUser(userData) {
 		try {
-			const result = await client.execute({
-				sql: `
-					INSERT INTO users (email, firstName, lastName, role, password)
-					VALUES (?, ?, ?, ?, ?)
-				`,
-				args: [
-					userData.email,
-					userData.firstName,
-					userData.lastName,
-					userData.role,
-					userData.password // W prawdziwej aplikacji hasło powinno być zahashowane!
-				]
-			});
-			
-			// Pobierz dodanego użytkownika
-			const newUser = await this.getUserByEmail(userData.email);
-			return newUser;
+			console.log('Próba dodania użytkownika:', userData);
+
+			// Dodaj nowego użytkownika używając funkcji RPC
+			const { data, error } = await supabase
+				.rpc('add_user', {
+					p_email: userData.email,
+					p_first_name: userData.firstName,
+					p_last_name: userData.lastName,
+					p_role: userData.role,
+					p_password: userData.password
+				});
+
+			console.log('Wynik dodawania:', data, error);
+
+			if (error) {
+				console.error('Błąd dodawania użytkownika:', error);
+				throw error;
+			}
+
+			return data;
 		} catch (error) {
-			console.error("Database error:", error);
+			console.error('Error in addUser:', error);
 			throw error;
 		}
 	},
 
 	async updateUser(userId, userData) {
-		try {
-			let sql = 'UPDATE users SET ';
-			const args = [];
-			const updates = [];
-
-			// Dynamicznie buduj zapytanie na podstawie przekazanych danych
-			if (userData.email) {
-				updates.push('email = ?');
-				args.push(userData.email);
-			}
-			if (userData.firstName) {
-				updates.push('firstName = ?');
-				args.push(userData.firstName);
-			}
-			if (userData.lastName) {
-				updates.push('lastName = ?');
-				args.push(userData.lastName);
-			}
-			if (userData.role) {
-				updates.push('role = ?');
-				args.push(userData.role);
-			}
-			if (userData.password) {
-				updates.push('password = ?');
-				args.push(userData.password); // W prawdziwej aplikacji hasło powinno być zahashowane!
-			}
-
-			sql += updates.join(', ');
-			sql += ' WHERE id = ?';
-			args.push(userId);
-
-			await client.execute({
-				sql,
-				args
+		const { data, error } = await supabase
+			.rpc('update_user', {
+				p_user_id: userId,
+				p_email: userData.email,
+				p_first_name: userData.firstName,
+				p_last_name: userData.lastName,
+				p_role: userData.role,
+				p_password: userData.password || null
 			});
-
-			// Pobierz zaktualizowanego użytkownika
-			const result = await client.execute({
-				sql: 'SELECT * FROM users WHERE id = ?',
-				args: [userId]
-			});
-			return result.rows[0];
-		} catch (error) {
-			console.error("Database error:", error);
-			throw error;
-		}
+			
+		if (error) throw error;
+		return data[0];
 	},
 
 	async deleteUser(userId) {
-		try {
-			await client.execute({
-				sql: 'DELETE FROM users WHERE id = ?',
-				args: [userId]
-			});
-			return true;
-		} catch (error) {
-			console.error("Database error:", error);
-			throw error;
-		}
-	},
+		const { data, error } = await supabase
+			.rpc('delete_user', { p_user_id: userId });
+			
+		if (error) throw error;
+		return data;
+	}
 };

@@ -56,12 +56,30 @@ export default function EmployeeManagement() {
 		setShowDeleteModal(true);
 	};
 
-	const handleSubmit = async (e) => {
+	const validateEmail = async (email) => {
+		try {
+			const existingUser = await dbOperations.getUserByEmail(email);
+			return !existingUser;
+		} catch (error) {
+			console.error("Error checking email:", error);
+			return false;
+		}
+	};
+
+	const handleAdd = async (e) => {
 		e.preventDefault();
 		setError(null);
 		setIsLoading(true);
 
 		try {
+			console.log('Dane formularza:', formData);
+
+			// Walidacja podstawowa
+			if (!formData.email || !formData.firstName || !formData.lastName || !formData.password) {
+				setError("Wszystkie pola są wymagane");
+				return;
+			}
+
 			await dbOperations.addUser(formData);
 			await loadEmployees();
 			setShowAddModal(false);
@@ -73,8 +91,8 @@ export default function EmployeeManagement() {
 				password: "",
 			});
 		} catch (error) {
-			setError("Nie udało się dodać pracownika. Spróbuj ponownie.");
-			console.error("Failed to add employee:", error);
+			console.error("Błąd dodawania pracownika:", error);
+			setError(error.message || "Nie udało się dodać pracownika");
 		} finally {
 			setIsLoading(false);
 		}
@@ -178,7 +196,7 @@ export default function EmployeeManagement() {
 								<span>{error}</span>
 							</div>
 						)}
-						<form onSubmit={handleSubmit} className="space-y-4">
+						<form onSubmit={handleAdd} className="space-y-4">
 							<div className="grid grid-cols-2 gap-4">
 								<div className="form-control">
 									<label className="label">
