@@ -2,471 +2,184 @@ import React, { useState, useEffect } from "react";
 import { useAuthStore, useStore } from "../lib/store";
 import { dbOperations } from "../lib/db";
 import { toast } from "react-hot-toast";
+import AddEmployeeModal from './AddEmployeeModal';
 
 export default function EmployeeManagement() {
 	const [employees, setEmployees] = useState([]);
+	const [loading, setLoading] = useState(true);
 	const [showAddModal, setShowAddModal] = useState(false);
-	const [showEditModal, setShowEditModal] = useState(false);
-	const [showDeleteModal, setShowDeleteModal] = useState(false);
-	const [selectedEmployee, setSelectedEmployee] = useState(null);
-	const [formData, setFormData] = useState({
-		email: "",
-		firstName: "",
-		lastName: "",
-		role: "worker",
-		password: "",
-	});
-	const [error, setError] = useState(null);
-	const [isLoading, setIsLoading] = useState(false);
+	const [editingEmployee, setEditingEmployee] = useState(null);
+	const [searchTerm, setSearchTerm] = useState('');
+	const [filterRole, setFilterRole] = useState('all');
 
 	useEffect(() => {
-		loadEmployees();
+		fetchEmployees();
 	}, []);
 
-	const loadEmployees = async () => {
+	const fetchEmployees = async () => {
 		try {
-			const allEmployees = await dbOperations.getAllUsers();
-			console.log('Wszyscy pracownicy przed filtrowaniem:', allEmployees);
-			
-			// Filtrujemy i mapujemy dane
-			const filteredEmployees = allEmployees
-				.filter(emp => emp.role !== 'admin')
-				.map(emp => ({
-					id: emp.id,
-					firstName: emp.first_name,  // Dostosowujemy nazwy pól
-					lastName: emp.last_name,
-					email: emp.email,
-					role: emp.role
-				}));
-				
-			console.log('Przefiltrowane dane pracowników:', filteredEmployees);
-			setEmployees(filteredEmployees);
+			setLoading(true);
+			const data = await dbOperations.getAllUsers();
+			setEmployees(data);
 		} catch (error) {
-			console.error("Błąd ładowania pracowników:", error);
-			setError("Nie udało się załadować listy pracowników");
-		}
-	};
-
-	const handleInputChange = (e) => {
-		const { name, value } = e.target;
-		setFormData(prev => ({
-			...prev,
-			[name]: value
-		}));
-	};
-
-	const handleEditClick = (employee) => {
-		setSelectedEmployee(employee);
-		setFormData({
-			email: employee.email,
-			firstName: employee.firstName,
-			lastName: employee.lastName,
-			role: employee.role,
-			password: "", // Puste hasło przy edycji
-		});
-		setShowEditModal(true);
-	};
-
-	const handleDeleteClick = (employee) => {
-		setSelectedEmployee(employee);
-		setShowDeleteModal(true);
-	};
-
-	const validateEmail = async (email) => {
-		try {
-			const existingUser = await dbOperations.getUserByEmail(email);
-			return !existingUser;
-		} catch (error) {
-			console.error("Error checking email:", error);
-			return false;
-		}
-	};
-
-	const handleAdd = async (e) => {
-		e.preventDefault();
-		setError(null);
-		setIsLoading(true);
-
-		try {
-			console.log('Dane formularza:', formData);
-
-			// Rozszerzona walidacja
-			if (!formData.email || !formData.firstName || !formData.lastName || !formData.password) {
-				setError("Wszystkie pola są wymagane");
-				return;
-			}
-
-			// Walidacja hasła
-			if (formData.password.length < 6) {
-				setError("Hasło musi mieć co najmniej 6 znaków");
-				return;
-			}
-
-			// Walidacja emaila
-			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!emailRegex.test(formData.email)) {
-				setError("Podaj prawidłowy adres email");
-				return;
-			}
-
-			const newUser = await dbOperations.addUser(formData);
-			console.log('Dodano nowego użytkownika:', newUser);
-			
-			// Pokaż komunikat o sukcesie
-			toast.success('Użytkownik został pomyślnie dodany!');
-			
-			// Odśwież listę użytkowników
-			await loadEmployees();
-			setShowAddModal(false);
-		} catch (error) {
-			console.error('Błąd dodawania pracownika:', error);
-			toast.error('Błąd podczas dodawania użytkownika: ' + error.message);
+			console.error('Błąd pobierania pracowników:', error);
+			toast.error('Nie udało się pobrać listy pracowników');
 		} finally {
-			setIsLoading(false);
+			setLoading(false);
 		}
 	};
 
-	const handleUpdate = async (e) => {
-		e.preventDefault();
-		setError(null);
-		setIsLoading(true);
-
-		try {
-			const updateData = { ...formData };
-			if (!updateData.password) {
-				delete updateData.password;
-			}
-			
-			await dbOperations.updateUser(selectedEmployee.id, updateData);
-			await loadEmployees();
-			setShowEditModal(false);
-			toast.success('Dane użytkownika zostały zaktualizowane');
-		} catch (error) {
-			console.error("Błąd aktualizacji użytkownika:", error);
-			toast.error('Błąd podczas aktualizacji: ' + error.message);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	const handleDelete = async () => {
-		if (window.confirm('Czy na pewno chcesz usunąć tego użytkownika?')) {
-			setIsLoading(true);
+	const handleDelete = async (id) => {
+		if (window.confirm('Czy na pewno chcesz usunąć tego pracownika?')) {
 			try {
-				await dbOperations.deleteUser(selectedEmployee.id);
-				await loadEmployees();
-				setShowDeleteModal(false);
-				toast.success('Użytkownik został pomyślnie usunięty');
+				await dbOperations.deleteUser(id);
+				toast.success('Pracownik został usunięty');
+				fetchEmployees();
 			} catch (error) {
-				console.error("Błąd usuwania użytkownika:", error);
-				toast.error('Błąd podczas usuwania użytkownika: ' + error.message);
-			} finally {
-				setIsLoading(false);
+				console.error('Błąd usuwania pracownika:', error);
+				toast.error('Nie udało się usunąć pracownika');
 			}
 		}
 	};
+
+	const getRoleBadgeColor = (role) => {
+		switch (role) {
+			case 'admin': return 'badge-primary';
+			case 'foreman': return 'badge-secondary';
+			case 'worker': return 'badge-accent';
+			default: return 'badge-ghost';
+		}
+	};
+
+	const getRoleTranslation = (role) => {
+		switch (role) {
+			case 'admin': return 'Administrator';
+			case 'foreman': return 'Brygadzista';
+			case 'worker': return 'Pracownik';
+			default: return role;
+		}
+	};
+
+	const filteredEmployees = employees
+		.filter(emp => 
+			(emp.first_name + ' ' + emp.last_name + ' ' + emp.email)
+				.toLowerCase()
+				.includes(searchTerm.toLowerCase())
+		)
+		.filter(emp => filterRole === 'all' || emp.role === filterRole);
 
 	return (
-		<div className="p-6">
-			<div className="flex justify-between items-center mb-6">
-				<h2 className="text-2xl font-bold">Zarządzanie Pracownikami</h2>
-				<button 
-					className="btn btn-primary"
-					onClick={() => setShowAddModal(true)}
-				>
-					Dodaj Pracownika
-				</button>
-			</div>
-
-			<div className="overflow-x-auto">
-				<table className="table w-full">
-					<thead>
-						<tr>
-							<th>Imię i Nazwisko</th>
-							<th>Email</th>
-							<th>Rola</th>
-							<th>Akcje</th>
-						</tr>
-					</thead>
-					<tbody>
-						{employees.map((employee) => (
-							<tr key={employee.id}>
-								<td>{employee.firstName} {employee.lastName}</td>
-								<td>{employee.email}</td>
-								<td>
-									<span className="badge badge-ghost">
-										{employee.role}
-									</span>
-								</td>
-								<td className="space-x-2">
-									<button 
-										className="btn btn-sm btn-ghost"
-										onClick={() => handleEditClick(employee)}
-									>
-										Edytuj
-									</button>
-									<button 
-										className="btn btn-sm btn-error btn-ghost"
-										onClick={() => handleDeleteClick(employee)}
-									>
-										Usuń
-									</button>
-								</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
-
-			{/* Modal dodawania */}
-			{showAddModal && (
-				<dialog className="modal modal-open">
-					<div className="modal-box">
-						<h3 className="font-bold text-lg mb-4">Dodaj Nowego Pracownika</h3>
-						{error && (
-							<div className="alert alert-error mb-4">
-								<span>{error}</span>
-							</div>
-						)}
-						<form onSubmit={handleAdd} className="space-y-4">
-							<div className="grid grid-cols-2 gap-4">
-								<div className="form-control">
-									<label className="label">
-										<span className="label-text">Imię</span>
-									</label>
-									<input
-										type="text"
-										name="firstName"
-										value={formData.firstName}
-										onChange={handleInputChange}
-										className="input input-bordered"
-										required
-									/>
-								</div>
-								<div className="form-control">
-									<label className="label">
-										<span className="label-text">Nazwisko</span>
-									</label>
-									<input
-										type="text"
-										name="lastName"
-										value={formData.lastName}
-										onChange={handleInputChange}
-										className="input input-bordered"
-										required
-									/>
-								</div>
-							</div>
-
-							<div className="form-control">
-								<label className="label">
-									<span className="label-text">Email</span>
-								</label>
-								<input
-									type="email"
-									name="email"
-									value={formData.email}
-									onChange={handleInputChange}
-									className="input input-bordered"
-									required
-								/>
-							</div>
-
-							<div className="form-control">
-								<label className="label">
-									<span className="label-text">Hasło</span>
-								</label>
-								<input
-									type="password"
-									name="password"
-									value={formData.password}
-									onChange={handleInputChange}
-									className="input input-bordered"
-									required
-									minLength={6}
-									placeholder="Minimum 6 znaków"
-								/>
-							</div>
-
-							<div className="form-control">
-								<label className="label">
-									<span className="label-text">Rola</span>
-								</label>
-								<select
-									name="role"
-									value={formData.role}
-									onChange={handleInputChange}
-									className="select select-bordered"
-									required
-								>
-									<option value="worker">Pracownik</option>
-									<option value="foreman">Brygadzista</option>
-								</select>
-							</div>
-
-							<div className="modal-action">
-								<button 
-									type="button" 
-									className="btn" 
-									onClick={() => setShowAddModal(false)}
-									disabled={isLoading}
-								>
-									Anuluj
-								</button>
-								<button 
-									type="submit" 
-									className="btn btn-primary"
-									disabled={isLoading}
-								>
-									{isLoading ? "Dodawanie..." : "Dodaj"}
-								</button>
-							</div>
-						</form>
+		<div className="space-y-6">
+			{/* Nagłówek z wyszukiwarką i filtrowaniem */}
+			<div className="card bg-base-100 shadow-xl">
+				<div className="card-body">
+					<div className="flex flex-col md:flex-row justify-between items-center gap-4">
+						<h2 className="card-title">Zarządzanie Pracownikami</h2>
+						<button
+							className="btn btn-primary"
+							onClick={() => setShowAddModal(true)}
+						>
+							Dodaj Pracownika
+						</button>
 					</div>
-					<form method="dialog" className="modal-backdrop">
-						<button onClick={() => setShowAddModal(false)}>close</button>
-					</form>
-				</dialog>
-			)}
-
-			{/* Modal edycji */}
-			{showEditModal && (
-				<dialog className="modal modal-open">
-					<div className="modal-box">
-						<h3 className="font-bold text-lg mb-4">Edytuj Dane Pracownika</h3>
-						{error && (
-							<div className="alert alert-error mb-4">
-								<span>{error}</span>
-							</div>
-						)}
-						<form onSubmit={handleUpdate} className="space-y-4">
-							<div className="grid grid-cols-2 gap-4">
-								<div className="form-control">
-									<label className="label">
-										<span className="label-text">Imię</span>
-									</label>
-									<input
-										type="text"
-										name="firstName"
-										value={formData.firstName}
-										onChange={handleInputChange}
-										className="input input-bordered"
-										required
-									/>
-								</div>
-								<div className="form-control">
-									<label className="label">
-										<span className="label-text">Nazwisko</span>
-									</label>
-									<input
-										type="text"
-										name="lastName"
-										value={formData.lastName}
-										onChange={handleInputChange}
-										className="input input-bordered"
-										required
-									/>
-								</div>
-							</div>
-
-							<div className="form-control">
-								<label className="label">
-									<span className="label-text">Email</span>
-								</label>
+					
+					<div className="flex flex-col md:flex-row gap-4 mt-4">
+						<div className="form-control flex-1">
+							<div className="input-group">
 								<input
-									type="email"
-									name="email"
-									value={formData.email}
-									onChange={handleInputChange}
-									className="input input-bordered"
-									required
+									type="text"
+									placeholder="Szukaj pracownika..."
+									className="input input-bordered w-full"
+									value={searchTerm}
+									onChange={(e) => setSearchTerm(e.target.value)}
 								/>
-							</div>
-
-							<div className="form-control">
-								<label className="label">
-									<span className="label-text">Nowe hasło (opcjonalne)</span>
-								</label>
-								<input
-									type="password"
-									name="password"
-									value={formData.password}
-									onChange={handleInputChange}
-									className="input input-bordered"
-									placeholder="Pozostaw puste, aby nie zmieniać"
-								/>
-							</div>
-
-							<div className="form-control">
-								<label className="label">
-									<span className="label-text">Rola</span>
-								</label>
-								<select
-									name="role"
-									value={formData.role}
-									onChange={handleInputChange}
-									className="select select-bordered"
-									required
-								>
-									<option value="worker">Pracownik</option>
-									<option value="foreman">Brygadzista</option>
-								</select>
-							</div>
-
-							<div className="modal-action">
-								<button 
-									type="button" 
-									className="btn" 
-									onClick={() => setShowEditModal(false)}
-									disabled={isLoading}
-								>
-									Anuluj
-								</button>
-								<button 
-									type="submit" 
-									className="btn btn-primary"
-									disabled={isLoading}
-								>
-									{isLoading ? "Zapisywanie..." : "Zapisz zmiany"}
+								<button className="btn btn-square">
+									<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+									</svg>
 								</button>
 							</div>
-						</form>
-					</div>
-					<form method="dialog" className="modal-backdrop">
-						<button onClick={() => setShowEditModal(false)}>close</button>
-					</form>
-				</dialog>
-			)}
-
-			{/* Modal potwierdzenia usunięcia */}
-			{showDeleteModal && (
-				<dialog className="modal modal-open">
-					<div className="modal-box">
-						<h3 className="font-bold text-lg mb-4">Potwierdź usunięcie</h3>
-						<p>Czy na pewno chcesz usunąć pracownika {selectedEmployee?.firstName} {selectedEmployee?.lastName}?</p>
-						<p className="text-sm text-error mt-2">Tej operacji nie można cofnąć.</p>
-						<div className="modal-action">
-							<button 
-								className="btn" 
-								onClick={() => setShowDeleteModal(false)}
-								disabled={isLoading}
-							>
-								Anuluj
-							</button>
-							<button 
-								className="btn btn-error"
-								onClick={handleDelete}
-								disabled={isLoading}
-							>
-								{isLoading ? "Usuwanie..." : "Usuń"}
-							</button>
 						</div>
+						
+						<select
+							className="select select-bordered w-full md:w-auto"
+							value={filterRole}
+							onChange={(e) => setFilterRole(e.target.value)}
+						>
+							<option value="all">Wszystkie role</option>
+							<option value="admin">Administratorzy</option>
+							<option value="foreman">Brygadziści</option>
+							<option value="worker">Pracownicy</option>
+						</select>
 					</div>
-					<form method="dialog" className="modal-backdrop">
-						<button onClick={() => setShowDeleteModal(false)}>close</button>
-					</form>
-				</dialog>
-			)}
+				</div>
+			</div>
+
+			{/* Lista pracowników */}
+			<div className="card bg-base-100 shadow-xl">
+				<div className="card-body">
+					{loading ? (
+						<div className="flex justify-center items-center h-40">
+							<span className="loading loading-spinner loading-lg"></span>
+						</div>
+					) : (
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+							{filteredEmployees.map(employee => (
+								<div key={employee.id} className="card bg-base-200">
+									<div className="card-body p-4">
+										<div className="flex justify-between items-start">
+											<div>
+												<h3 className="font-bold text-lg">
+													{employee.first_name} {employee.last_name}
+												</h3>
+												<p className="text-sm opacity-70">{employee.email}</p>
+											</div>
+											<div className={`badge ${getRoleBadgeColor(employee.role)}`}>
+												{getRoleTranslation(employee.role)}
+											</div>
+										</div>
+										
+										<div className="card-actions justify-end mt-4">
+											<button
+												className="btn btn-sm btn-ghost"
+												onClick={() => setEditingEmployee(employee)}
+											>
+												✏️ Edytuj
+											</button>
+											<button
+												className="btn btn-sm btn-error"
+												onClick={() => handleDelete(employee.id)}
+											>
+												🗑️ Usuń
+											</button>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+			</div>
+
+			{/* Modalne okna */}
+			<AddEmployeeModal
+				show={showAddModal}
+				onClose={() => setShowAddModal(false)}
+				onEmployeeAdded={() => {
+					fetchEmployees();
+					setShowAddModal(false);
+				}}
+			/>
+
+			<AddEmployeeModal
+				show={!!editingEmployee}
+				onClose={() => setEditingEmployee(null)}
+				onEmployeeAdded={() => {
+					fetchEmployees();
+					setEditingEmployee(null);
+				}}
+				editingEmployee={editingEmployee}
+			/>
 		</div>
 	);
 }

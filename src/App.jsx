@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
-import Dashboard from "./components/Dashboard";
+import Dashboard from "./components/dashboard";
 import LoginForm from "./components/loginForm";
 import { useAuthStore, useStore } from "./lib/store";
 import EmployeeManagement from "./components/EmployeeManagement";
@@ -18,6 +18,7 @@ import AlertSystem from "./components/AlertSystem";
 import QualityTracking from "./components/QualityTracking";
 import AnalyticsModule from "./components/AnalyticsModule";
 import { Toaster } from 'react-hot-toast';
+import ProductionDataEntry from './components/ProductionDataEntry';
 
 // Mockowane dane KPI
 const mockKPIData = {
@@ -364,12 +365,20 @@ function App() {
 								<Route path="/employees" element={<EmployeeManagement />} />
 								<Route path="/savings" element={<SavingsProjects />} />
 								<Route path="/tasks" element={<TaskManagement />} />
-								<Route path="/kpi" element={<KPISection data={mockKPIData} />} />
+								<Route path="/kpi" element={<KPISection data={mockKPIData} showProductionForm={true} />} />
 								<Route path="/machines" element={<MachineStatus machines={mockMachinesData} />} />
 								<Route path="/schedule" element={<ProductionSchedule scheduleData={mockScheduleData} />} />
 								<Route path="/attendance" element={<EmployeeAttendance attendanceData={mockAttendanceData} />} />
 								<Route path="/quality" element={<QualityTracking qualityData={mockQualityData} />} />
 								<Route path="/analytics" element={<AnalyticsModule analyticsData={mockAnalyticsData} />} />
+								<Route 
+									path="/production" 
+									element={
+										(user?.role === 'admin' || user?.role === 'worker') 
+											? <ProductionDataEntry /> 
+											: <Navigate to="/" />
+									} 
+								/>
 							</Routes>
 						</main>
 						<Footer />

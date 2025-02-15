@@ -121,6 +121,171 @@ export const dbOperations = {
 			
 		if (error) throw error;
 		return data;
+	},
+
+	async addProductionData(data) {
+		const { error } = await supabase
+			.from('production_data')
+			.insert([data]);
+		
+		if (error) throw error;
+	},
+
+	async getProductionData(startDate, endDate) {
+		const { data, error } = await supabase
+			.from('production_data')
+			.select('*')
+			.gte('date', startDate)
+			.lte('date', endDate)
+			.order('date', { ascending: true })
+			.limit(100000);
+
+		if (error) throw error;
+		return data;
+	},
+
+	async exportProductionData(startDate, endDate) {
+		const data = await this.getProductionData(startDate, endDate);
+		
+		// Konwertuj do CSV
+		const headers = ['Data', 'Zmiana', 'Plan', 'Wykonanie', 'Typ produktu'];
+		const csvContent = [
+			headers.join(','),
+			...data.map(row => [
+				row.date,
+				row.shift,
+				row.planned_units,
+				row.actual_units,
+				row.product_type
+			].join(','))
+		].join('\n');
+
+		// Utwórz i pobierz plik
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const link = document.createElement('a');
+		link.href = URL.createObjectURL(blob);
+		link.download = `production_data_${startDate}_${endDate}.csv`;
+		link.click();
+	},
+
+	async getProductionDataHistory(startDate, endDate, page = 1, itemsPerPage = 100) {
+		// Najpierw pobierz całkowitą liczbę rekordów
+		const { count } = await supabase
+			.from('production_data_history')
+			.select('*', { count: 'exact', head: true })
+			.gte('created_at', startDate)
+			.lte('created_at', endDate);
+
+		// Następnie pobierz stronę danych
+		const { data, error } = await supabase
+			.from('production_data_history')
+			.select(`
+				*,
+				user:users(first_name, last_name),
+				production_data(*)
+			`)
+			.gte('created_at', startDate)
+			.lte('created_at', endDate)
+			.order('created_at', { ascending: false })
+			.range((page - 1) * itemsPerPage, page * itemsPerPage - 1);
+
+		if (error) throw error;
+		return { data, count };
+	},
+
+	async getMachines() {
+		const { data, error } = await supabase
+			.from('machines')
+			.select(`
+				*,
+				operator:operator_id(
+					id,
+					first_name,
+					last_name
+				)
+			`)
+			.order('name');
+
+		if (error) throw error;
+		return data;
+	},
+
+	async getWorkers() {
+		const { data, error } = await supabase
+			.from('users')
+			.select('id, first_name, last_name')
+			.eq('role', 'worker')
+			.order('first_name');
+
+		if (error) throw error;
+		return data;
+	},
+
+	async updateMachineOperator(machineId, operatorId) {
+		const { data, error } = await supabase
+			.from('machines')
+			.update({ operator_id: operatorId })
+			.eq('id', machineId)
+			.select(`
+				*,
+				operator:operator_id(
+					id,
+					first_name,
+					last_name
+				)
+			`)
+			.single();
+
+		if (error) throw error;
+		return data;
+	},
+
+	async updateMachineStatus(machineId, status, failureReason = null) {
+		const updates = {
+			status,
+			updated_at: new Date().toISOString(),
+			failure_reason: failureReason
+		};
+
+		if (status === 'service') {
+			updates.last_service = new Date().toISOString().split('T')[0];
+		}
+
+		const { data, error } = await supabase
+			.from('machines')
+			.update(updates)
+			.eq('id', machineId)
+			.select(`
+				*,
+				operator:operator_id(
+					id,
+					first_name,
+					last_name
+				)
+			`)
+			.single();
+
+		if (error) throw error;
+		return data;
+	},
+
+	async clearFailureReason(machineId) {
+		const { data, error } = await supabase
+			.from('machines')
+			.update({ failure_reason: null })
+			.eq('id', machineId)
+			.select(`
+				*,
+				operator:operator_id(
+					id,
+					first_name,
+					last_name
+				)
+			`)
+			.single();
+
+		if (error) throw error;
+		return data;
 	}
 };
 

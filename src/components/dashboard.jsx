@@ -68,7 +68,7 @@ const mockMachinesData = [
 
 const AdminDashboard = () => (
 	<div className="p-6">
-		<h2 className="text-2xl font-bold mb-4">Admin Dashboard</h2>
+		<h2 className="text-2xl font-bold mb-4">Panel Administratora</h2>
 		<KPISection data={mockKPIData} />
 		<MachineStatus machines={mockMachinesData} />
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -137,7 +137,7 @@ const ForemanDashboard = () => (
 
 const WorkerDashboard = () => (
 	<div className="p-6">
-		<h2 className="text-2xl font-bold mb-4">Worker Dashboard</h2>
+		<h2 className="text-2xl font-bold mb-4">Panel Pracownika</h2>
 		<KPISection data={mockKPIData} />
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 			<div className="card bg-base-100 shadow-xl">
