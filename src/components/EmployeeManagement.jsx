@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuthStore, useStore } from "../lib/store";
 import { dbOperations } from "../lib/db";
+import { toast } from "react-hot-toast";
 
 export default function EmployeeManagement() {
 	const [employees, setEmployees] = useState([]);
@@ -25,9 +26,24 @@ export default function EmployeeManagement() {
 	const loadEmployees = async () => {
 		try {
 			const allEmployees = await dbOperations.getAllUsers();
-			setEmployees(allEmployees.filter(emp => emp.role !== "admin"));
+			console.log('Wszyscy pracownicy przed filtrowaniem:', allEmployees);
+			
+			// Filtrujemy i mapujemy dane
+			const filteredEmployees = allEmployees
+				.filter(emp => emp.role !== 'admin')
+				.map(emp => ({
+					id: emp.id,
+					firstName: emp.first_name,  // Dostosowujemy nazwy pól
+					lastName: emp.last_name,
+					email: emp.email,
+					role: emp.role
+				}));
+				
+			console.log('Przefiltrowane dane pracowników:', filteredEmployees);
+			setEmployees(filteredEmployees);
 		} catch (error) {
-			console.error("Failed to load employees:", error);
+			console.error("Błąd ładowania pracowników:", error);
+			setError("Nie udało się załadować listy pracowników");
 		}
 	};
 
@@ -74,25 +90,37 @@ export default function EmployeeManagement() {
 		try {
 			console.log('Dane formularza:', formData);
 
-			// Walidacja podstawowa
+			// Rozszerzona walidacja
 			if (!formData.email || !formData.firstName || !formData.lastName || !formData.password) {
 				setError("Wszystkie pola są wymagane");
 				return;
 			}
 
-			await dbOperations.addUser(formData);
+			// Walidacja hasła
+			if (formData.password.length < 6) {
+				setError("Hasło musi mieć co najmniej 6 znaków");
+				return;
+			}
+
+			// Walidacja emaila
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!emailRegex.test(formData.email)) {
+				setError("Podaj prawidłowy adres email");
+				return;
+			}
+
+			const newUser = await dbOperations.addUser(formData);
+			console.log('Dodano nowego użytkownika:', newUser);
+			
+			// Pokaż komunikat o sukcesie
+			toast.success('Użytkownik został pomyślnie dodany!');
+			
+			// Odśwież listę użytkowników
 			await loadEmployees();
 			setShowAddModal(false);
-			setFormData({
-				email: "",
-				firstName: "",
-				lastName: "",
-				role: "worker",
-				password: "",
-			});
 		} catch (error) {
-			console.error("Błąd dodawania pracownika:", error);
-			setError(error.message || "Nie udało się dodać pracownika");
+			console.error('Błąd dodawania pracownika:', error);
+			toast.error('Błąd podczas dodawania użytkownika: ' + error.message);
 		} finally {
 			setIsLoading(false);
 		}
@@ -106,31 +134,35 @@ export default function EmployeeManagement() {
 		try {
 			const updateData = { ...formData };
 			if (!updateData.password) {
-				delete updateData.password; // Nie aktualizuj hasła jeśli jest puste
+				delete updateData.password;
 			}
 			
 			await dbOperations.updateUser(selectedEmployee.id, updateData);
 			await loadEmployees();
 			setShowEditModal(false);
+			toast.success('Dane użytkownika zostały zaktualizowane');
 		} catch (error) {
-			setError("Nie udało się zaktualizować danych pracownika.");
-			console.error("Failed to update employee:", error);
+			console.error("Błąd aktualizacji użytkownika:", error);
+			toast.error('Błąd podczas aktualizacji: ' + error.message);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	const handleDelete = async () => {
-		setIsLoading(true);
-		try {
-			await dbOperations.deleteUser(selectedEmployee.id);
-			await loadEmployees();
-			setShowDeleteModal(false);
-		} catch (error) {
-			setError("Nie udało się usunąć pracownika.");
-			console.error("Failed to delete employee:", error);
-		} finally {
-			setIsLoading(false);
+		if (window.confirm('Czy na pewno chcesz usunąć tego użytkownika?')) {
+			setIsLoading(true);
+			try {
+				await dbOperations.deleteUser(selectedEmployee.id);
+				await loadEmployees();
+				setShowDeleteModal(false);
+				toast.success('Użytkownik został pomyślnie usunięty');
+			} catch (error) {
+				console.error("Błąd usuwania użytkownika:", error);
+				toast.error('Błąd podczas usuwania użytkownika: ' + error.message);
+			} finally {
+				setIsLoading(false);
+			}
 		}
 	};
 
@@ -251,6 +283,8 @@ export default function EmployeeManagement() {
 									onChange={handleInputChange}
 									className="input input-bordered"
 									required
+									minLength={6}
+									placeholder="Minimum 6 znaków"
 								/>
 							</div>
 

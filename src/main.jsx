@@ -4,7 +4,6 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App";
 import { testConnection } from "./lib/db";
-// import { initializeDatabase } from "./lib/db";
 
 // Initialize database before rendering
 async function init() {
@@ -15,7 +14,6 @@ async function init() {
 			throw new Error('Nie można połączyć się z bazą danych');
 		}
 
-		// await initializeDatabase();
 		const root = createRoot(document.getElementById("root"));
 		root.render(
 			<React.StrictMode>

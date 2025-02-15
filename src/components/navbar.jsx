@@ -1,9 +1,19 @@
 import React from "react";
-import { useAuthStore, useStore } from "../lib/store";
+import { useAuthStore } from "../lib/store";
 
 function Navbar({ onToggleSidebar }) {
 	const user = useAuthStore((state) => state.user);
-	const logout = useAuthStore((state) => state.logout);
+	const signOut = useAuthStore((state) => state.signOut);
+
+	const handleLogout = async () => {
+		try {
+			await signOut();
+			// Wylogowanie powinno automatycznie przekierować do strony logowania
+			// dzięki warunkowi if (!user) w App.jsx
+		} catch (error) {
+			console.error('Błąd wylogowania:', error);
+		}
+	};
 
 	return (
 		<div className="navbar bg-base-100 shadow-lg h-16">
@@ -60,7 +70,7 @@ function Navbar({ onToggleSidebar }) {
 								<a>Profile</a>
 							</li>
 							<li>
-								<a onClick={logout}>Logout</a>
+								<a onClick={handleLogout}>Wyloguj</a>
 							</li>
 						</ul>
 					</div>

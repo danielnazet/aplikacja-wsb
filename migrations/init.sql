@@ -5,6 +5,9 @@ GRANT ALL ON ALL TABLES IN SCHEMA auth TO postgres, anon, authenticated, service
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA auth TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO postgres, anon, authenticated, service_role;
 
+-- Dodaj rozszerzenie pgcrypto
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- 1. Najpierw usuńmy wszystkie istniejące obiekty (w odwrotnej kolejności zależności)
 DROP POLICY IF EXISTS admin_all ON public.users;
 DROP POLICY IF EXISTS users_view ON public.users;
@@ -28,7 +31,7 @@ CREATE TABLE public.users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Utworzenie widoku
+-- 4. Utworzenie widoku 
 CREATE VIEW public.public_users AS
 SELECT 
     id,
@@ -62,7 +65,13 @@ RETURNS SETOF public.public_users AS $$
 BEGIN
     RETURN QUERY
     INSERT INTO public.users (email, first_name, last_name, role, password)
-    VALUES (p_email, p_first_name, p_last_name, p_role, p_password)
+    VALUES (
+        p_email, 
+        p_first_name, 
+        p_last_name, 
+        p_role, 
+        crypt(p_password, gen_salt('bf')) -- Hashowanie hasła
+    )
     RETURNING id, email, first_name, last_name, role, created_at, updated_at;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -122,10 +131,10 @@ CREATE POLICY admin_all ON public.users
     USING (true)  -- Pozwól na wszystkie operacje dla uwierzytelnionych użytkowników
     WITH CHECK (true);
 
--- Polityka dla INSERT - pozwól na dodawanie nowych użytkowników
+-- Polityka dla INSERT - pozwól na dodawanie nowych użytkowników dla anon
 CREATE POLICY users_insert ON public.users
     FOR INSERT
-    TO authenticated
+    TO anon, authenticated
     WITH CHECK (true);
 
 -- Polityka dla SELECT - mogą widzieć podstawowe dane innych użytkowników
@@ -140,19 +149,26 @@ CREATE POLICY users_update_own ON public.users
     TO authenticated
     USING (id = auth.uid());
 
+-- Dodaj politykę dla anon
+CREATE POLICY anon_access ON public.users
+    FOR ALL
+    TO anon
+    USING (true)
+    WITH CHECK (true);
+
 -- 7. Dodanie indeksów
 CREATE INDEX idx_users_email ON public.users(email);
 CREATE INDEX idx_users_role ON public.users(role);
 
--- 8. Dodanie domyślnego admina
+-- 8. Dodanie domyślnego admina (z zahashowanym hasłem)
 INSERT INTO public.users (id, email, first_name, last_name, role, password)
 VALUES (
     '00000000-0000-0000-0000-000000000000',
-    'admin@example.com',
+    'admin@admin.com',
     'Admin',
     'User',
     'admin',
-    'admin123'
+    crypt('Admin123!@#', gen_salt('bf')) -- Nowe, bardziej złożone hasło
 )
 ON CONFLICT (email) DO NOTHING;
 
@@ -171,4 +187,16 @@ COMMENT ON COLUMN public.users.last_name IS 'Nazwisko użytkownika';
 COMMENT ON COLUMN public.users.role IS 'Rola użytkownika w systemie';
 COMMENT ON COLUMN public.users.password IS 'Hasło użytkownika (powinno być zahashowane)';
 COMMENT ON COLUMN public.users.created_at IS 'Data utworzenia konta';
-COMMENT ON COLUMN public.users.updated_at IS 'Data ostatniej aktualizacji danych'; 
+COMMENT ON COLUMN public.users.updated_at IS 'Data ostatniej aktualizacji danych';
+
+-- Funkcja do weryfikacji hasła
+CREATE OR REPLACE FUNCTION public.verify_user(
+    p_email TEXT,
+    p_password TEXT
+)
+RETURNS public.users AS $$
+    SELECT *
+    FROM public.users
+    WHERE email = p_email 
+    AND password = crypt(p_password, password);
+$$ LANGUAGE sql SECURITY DEFINER; 

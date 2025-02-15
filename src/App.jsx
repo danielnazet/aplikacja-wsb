@@ -17,6 +17,7 @@ import EmployeeAttendance from "./components/EmployeeAttendance";
 import AlertSystem from "./components/AlertSystem";
 import QualityTracking from "./components/QualityTracking";
 import AnalyticsModule from "./components/AnalyticsModule";
+import { Toaster } from 'react-hot-toast';
 
 // Mockowane dane KPI
 const mockKPIData = {
@@ -297,6 +298,12 @@ function App() {
 	const { user } = useAuthStore();
 	const { fetchUsers } = useStore();
 	const [alerts, setAlerts] = useState(initialAlerts);
+	const initialize = useAuthStore(state => state.initialize);
+	const loading = useAuthStore(state => state.loading);
+
+	useEffect(() => {
+		initialize();
+	}, [initialize]);
 
 	useEffect(() => {
 		fetchUsers();
@@ -310,6 +317,17 @@ function App() {
 		window.addEventListener("resize", handleResize);
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
+
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-base-200 flex items-center justify-center">
+				<div className="text-center">
+					<span className="loading loading-spinner loading-lg"></span>
+					<p className="mt-4">Ładowanie...</p>
+				</div>
+			</div>
+		);
+	}
 
 	if (!user) {
 		return (
@@ -327,40 +345,43 @@ function App() {
 	};
 
 	return (
-		<div className="min-h-screen bg-base-200">
-			<div className="drawer lg:drawer-open">
-				<input 
-					id="my-drawer-2" 
-					type="checkbox" 
-					className="drawer-toggle" 
-					checked={sidebarOpen}
-					onChange={(e) => setSidebarOpen(e.target.checked)}
-				/>
-				<div className="drawer-content flex flex-col">
-					<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-					<main className="flex-1 overflow-y-auto bg-base-200 pt-4">
-						<Routes>
-							<Route path="/" element={<Dashboard />} />
-							<Route path="/employees" element={<EmployeeManagement />} />
-							<Route path="/savings" element={<SavingsProjects />} />
-							<Route path="/tasks" element={<TaskManagement />} />
-							<Route path="/kpi" element={<KPISection data={mockKPIData} />} />
-							<Route path="/machines" element={<MachineStatus machines={mockMachinesData} />} />
-							<Route path="/schedule" element={<ProductionSchedule scheduleData={mockScheduleData} />} />
-							<Route path="/attendance" element={<EmployeeAttendance attendanceData={mockAttendanceData} />} />
-							<Route path="/quality" element={<QualityTracking qualityData={mockQualityData} />} />
-							<Route path="/analytics" element={<AnalyticsModule analyticsData={mockAnalyticsData} />} />
-						</Routes>
-					</main>
-					<Footer />
+		<>
+			<Toaster position="top-right" />
+			<div className="min-h-screen bg-base-200">
+				<div className="drawer lg:drawer-open">
+					<input 
+						id="my-drawer-2" 
+						type="checkbox" 
+						className="drawer-toggle" 
+						checked={sidebarOpen}
+						onChange={(e) => setSidebarOpen(e.target.checked)}
+					/>
+					<div className="drawer-content flex flex-col">
+						<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+						<main className="flex-1 overflow-y-auto bg-base-200 pt-4">
+							<Routes>
+								<Route path="/" element={<Dashboard />} />
+								<Route path="/employees" element={<EmployeeManagement />} />
+								<Route path="/savings" element={<SavingsProjects />} />
+								<Route path="/tasks" element={<TaskManagement />} />
+								<Route path="/kpi" element={<KPISection data={mockKPIData} />} />
+								<Route path="/machines" element={<MachineStatus machines={mockMachinesData} />} />
+								<Route path="/schedule" element={<ProductionSchedule scheduleData={mockScheduleData} />} />
+								<Route path="/attendance" element={<EmployeeAttendance attendanceData={mockAttendanceData} />} />
+								<Route path="/quality" element={<QualityTracking qualityData={mockQualityData} />} />
+								<Route path="/analytics" element={<AnalyticsModule analyticsData={mockAnalyticsData} />} />
+							</Routes>
+						</main>
+						<Footer />
+					</div>
+					<Sidebar isOpen={sidebarOpen} />
 				</div>
-				<Sidebar isOpen={sidebarOpen} />
+				<AlertSystem 
+					alerts={alerts}
+					onDismiss={handleDismissAlert}
+				/>
 			</div>
-			<AlertSystem 
-				alerts={alerts}
-				onDismiss={handleDismissAlert}
-			/>
-		</div>
+		</>
 	);
 }
 

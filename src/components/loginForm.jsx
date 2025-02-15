@@ -3,55 +3,43 @@ import { useAuthStore } from "../lib/store";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { dbOperations } from "../lib/db";
+import { useNavigate } from "react-router-dom";
 
 // Form validation schema
 const schema = z.object({
-	email: z.string().email(),
-	password: z.string().min(6),
+	email: z.string().email("Nieprawidłowy adres email"),
+	password: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
 });
 
 export default function LoginForm() {
-	// Get setUser function from auth store
-	const setUser = useAuthStore((state) => state.setUser);
+	const signIn = useAuthStore((state) => state.signIn);
+	const error = useAuthStore((state) => state.error);
+	const navigate = useNavigate();
 
-	// Initialize form with validation
 	const {
 		register,
 		handleSubmit,
-		formState: { errors },
+		formState: { errors, isSubmitting },
 		setError,
 	} = useForm({
 		resolver: zodResolver(schema),
 	});
 
-	// Handle form submission
 	const onSubmit = async (data) => {
 		try {
-			// Attempt to get user from database
-			const user = await dbOperations.getUserByEmail(data.email);
-
-			// Verify credentials
-			if (user && user.password === data.password) {
-				// Set user in auth store (excluding password)
-				const { password, ...userWithoutPassword } = user;
-				setUser(userWithoutPassword);
-			} else {
-				setError("root", {
-					message: "Invalid credentials",
-				});
-			}
+			await signIn(data.email, data.password);
+			navigate('/'); // Przekieruj do głównej strony po zalogowaniu
 		} catch (error) {
 			console.error("Login failed:", error);
 			setError("root", {
-				message: "Login failed. Please try again.",
+				message: "Nieprawidłowy email lub hasło",
 			});
 		}
 	};
 
 	return (
 		<div className="max-w-md w-full mx-auto p-6 bg-base-100 rounded-lg shadow-xl">
-			<h2 className="text-2xl font-bold text-center mb-6">Login</h2>
+			<h2 className="text-2xl font-bold text-center mb-6">Logowanie</h2>
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 				<div>
 					<label className="label">
@@ -72,13 +60,13 @@ export default function LoginForm() {
 
 				<div>
 					<label className="label">
-						<span className="label-text">Password</span>
+						<span className="label-text">Hasło</span>
 					</label>
 					<input
 						type="password"
 						{...register("password")}
 						className="input input-bordered w-full"
-						placeholder="Enter your password"
+						placeholder="Wprowadź hasło"
 					/>
 					{errors.password && (
 						<span className="text-error text-sm">
@@ -87,14 +75,18 @@ export default function LoginForm() {
 					)}
 				</div>
 
-				{errors.root && (
+				{(errors.root || error) && (
 					<div className="text-error text-sm text-center">
-						{errors.root.message}
+						{errors.root?.message || error}
 					</div>
 				)}
 
-				<button type="submit" className="btn btn-primary w-full">
-					Login
+				<button 
+					type="submit" 
+					className="btn btn-primary w-full"
+					disabled={isSubmitting}
+				>
+					{isSubmitting ? "Logowanie..." : "Zaloguj się"}
 				</button>
 			</form>
 		</div>
