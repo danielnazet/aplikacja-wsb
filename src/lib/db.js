@@ -194,20 +194,25 @@ export const dbOperations = {
 	},
 
 	async getMachines() {
-		const { data, error } = await supabase
-			.from('machines')
-			.select(`
-				*,
-				operator:operator_id(
-					id,
-					first_name,
-					last_name
-				)
-			`)
-			.order('name');
+		try {
+			const { data, error } = await supabase
+				.from('machines')
+				.select(`
+					*,
+					operator:operator_id (
+						id,
+						first_name,
+						last_name
+					)
+				`)
+				.order('name', { ascending: true });
 
-		if (error) throw error;
-		return data;
+			if (error) throw error;
+			return data;
+		} catch (error) {
+			console.error('Błąd pobierania maszyn:', error);
+			throw error;
+		}
 	},
 
 	async getWorkers() {
@@ -465,3 +470,29 @@ export const setupAdmin = async () => {
 		throw error;
 	}
 };
+
+// Popraw zapytanie do historii produkcji
+async function getProductionHistory(startDate, endDate) {
+	try {
+		const { data, error } = await supabase
+			.from('production_data_history')
+			.select(`
+				*,
+				user:user_id (
+					first_name,
+					last_name
+				),
+				production_data (*)
+			`)
+			.gte('created_at', startDate)
+			.lte('created_at', endDate)
+			.order('created_at', { ascending: false })
+			.limit(100);
+
+		if (error) throw error;
+		return data;
+	} catch (error) {
+		console.error('Błąd pobierania historii:', error);
+		throw error;
+	}
+}

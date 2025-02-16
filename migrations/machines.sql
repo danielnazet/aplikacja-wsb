@@ -1,7 +1,7 @@
 -- Najpierw usuń istniejącą tabelę jeśli istnieje
 DROP TABLE IF EXISTS machines CASCADE;
 
-CREATE TABLE machines (
+CREATE TABLE IF NOT EXISTS machines (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     status VARCHAR(20) NOT NULL CHECK (status IN ('working', 'service', 'failure')),
@@ -68,4 +68,8 @@ CROSS JOIN LATERAL (
 -- Dodaj przyczynę awarii dla zepsutej maszyny
 UPDATE machines 
 SET failure_reason = 'Awaria wrzeciona'
-WHERE name = 'Frezarka CNC F1'; 
+WHERE name = 'Frezarka CNC F1';
+
+-- Dodaj uprawnienia
+ALTER TABLE machines ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable read access for all users" ON machines FOR SELECT TO authenticated USING (true); 

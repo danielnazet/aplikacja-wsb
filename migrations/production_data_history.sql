@@ -1,4 +1,4 @@
-CREATE TABLE production_data_history (
+CREATE TABLE IF NOT EXISTS production_data_history (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     production_data_id UUID REFERENCES production_data(id),
     user_id UUID REFERENCES users(id),
@@ -7,7 +7,16 @@ CREATE TABLE production_data_history (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Trigger do zapisywania historii zmian
+-- Dodaj uprawnienia
+ALTER TABLE production_data_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable read access for all users" ON production_data_history;
+CREATE POLICY "Enable read access for all users" ON production_data_history FOR SELECT TO authenticated USING (true);
+
+-- Usuń istniejący trigger i funkcję
+DROP TRIGGER IF EXISTS production_data_history_trigger ON production_data;
+DROP FUNCTION IF EXISTS log_production_data_changes();
+
+-- Utwórz funkcję do zapisywania historii zmian
 CREATE OR REPLACE FUNCTION log_production_data_changes()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -43,6 +52,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Utwórz trigger
 CREATE TRIGGER production_data_history_trigger
     AFTER INSERT OR UPDATE ON production_data
     FOR EACH ROW
