@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { auth } from './auth';
-import { supabase } from './supabase';
+import { getSupabase } from './supabase';
 
 // Store dla autentykacji
 export const useAuthStore = create((set) => ({
@@ -35,6 +35,7 @@ export const useAuthStore = create((set) => ({
         try {
             const session = await auth.getSession();
             if (session) {
+                const supabase = getSupabase();
                 const { data: userData } = await supabase
                     .from('users')
                     .select('*')
@@ -58,6 +59,7 @@ export const useStore = create((set) => ({
     setUsers: (users) => set({ users }),
     fetchUsers: async () => {
         try {
+            const supabase = getSupabase();
             const { data, error } = await supabase
                 .from('users')
                 .select('*')

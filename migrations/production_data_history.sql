@@ -1,3 +1,6 @@
+-- Najpierw usuń istniejącą tabelę jeśli istnieje
+DROP TABLE IF EXISTS production_data_history CASCADE;
+
 CREATE TABLE IF NOT EXISTS production_data_history (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     production_data_id UUID REFERENCES production_data(id),
@@ -11,6 +14,10 @@ CREATE TABLE IF NOT EXISTS production_data_history (
 ALTER TABLE production_data_history ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable read access for all users" ON production_data_history;
 CREATE POLICY "Enable read access for all users" ON production_data_history FOR SELECT TO authenticated USING (true);
+
+-- Dodaj indeksy dla poprawy wydajności
+CREATE INDEX IF NOT EXISTS idx_production_data_history_user ON production_data_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_production_data_history_production_data ON production_data_history(production_data_id);
 
 -- Usuń istniejący trigger i funkcję
 DROP TRIGGER IF EXISTS production_data_history_trigger ON production_data;

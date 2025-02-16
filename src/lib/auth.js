@@ -1,9 +1,10 @@
-import { supabase } from './supabase';
+import { getSupabase } from './supabase';
 
 export const auth = {
     async signIn(email, password) {
         try {
             console.log('Próba logowania:', { email });
+            const supabase = getSupabase();
 
             // Najpierw zaloguj przez Supabase Auth
             const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -19,18 +20,36 @@ export const auth = {
                 throw authError;
             }
 
-            // Jeśli logowanie się powiodło, pobierz dane użytkownika z tabeli users
+            // Sprawdź czy użytkownik istnieje w tabeli users
             const { data: userData, error: userError } = await supabase
                 .from('users')
                 .select('*')
-                .eq('email', email)
+                .eq('id', authData.user.id)
                 .single();
 
-            if (userError) {
-                console.error('Błąd pobierania danych użytkownika:', userError);
-                // Wyloguj użytkownika z Auth, jeśli nie ma go w tabeli users
-                await supabase.auth.signOut();
-                throw new Error('Błąd pobierania danych użytkownika');
+            if (userError || !userData) {
+                // Jeśli nie istnieje, dodaj go
+                const { data: newUser, error: insertError } = await supabase
+                    .from('users')
+                    .insert([{
+                        id: authData.user.id,
+                        email: authData.user.email,
+                        first_name: authData.user.user_metadata?.first_name || '',
+                        last_name: authData.user.user_metadata?.last_name || '',
+                        role: authData.user.user_metadata?.role || 'worker'
+                    }])
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    console.error('Błąd dodawania użytkownika do bazy:', insertError);
+                    throw insertError;
+                }
+
+                return {
+                    ...authData,
+                    user: newUser
+                };
             }
 
             return {
@@ -45,6 +64,7 @@ export const auth = {
 
     async signOut() {
         try {
+            const supabase = getSupabase();
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
             // Dodatkowe czyszczenie po wylogowaniu
@@ -56,6 +76,7 @@ export const auth = {
     },
 
     async getSession() {
+        const supabase = getSupabase();
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         return session;

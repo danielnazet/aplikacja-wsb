@@ -34,13 +34,48 @@ export default function ProductionDataEntry({ onDataAdded }) {
         }
     });
 
-    const onSubmit = async (data) => {
+    const onSubmit = async (formData) => {
+        if (!user?.id) {
+            toast.error('Musisz być zalogowany aby dodać dane');
+            return;
+        }
+
         setIsLoading(true);
         try {
-            await dbOperations.addProductionData({
-                ...data,
-                created_by: user.id
+            // Najpierw sprawdź uprawnienia
+            const { data: authDebug, error: debugError } = await dbOperations.debugAuth();
+            console.log('Auth debug pełny:', authDebug[0]);
+            
+            const dataToSend = {
+                ...formData,
+                planned_units: Number(formData.planned_units),
+                actual_units: Number(formData.actual_units),
+                created_by: authDebug[0].current_userid
+            };
+
+            console.log('Wysyłane dane pełne:', {
+                ...dataToSend,
+                currentUserId: authDebug[0].current_userid,
+                userRole: authDebug[0].user_role,
+                userExists: authDebug[0].user_exists,
+                authValid: authDebug[0].auth_valid,
+                policyCheck: authDebug[0].policy_check
             });
+
+            const { error } = await dbOperations.addProductionData(dataToSend);
+            
+            if (error) {
+                console.error('Szczegóły błędu pełne:', {
+                    kod: error.code,
+                    wiadomość: error.message,
+                    szczegóły: error.details,
+                    wskazówka: error.hint,
+                    debug: authDebug[0],
+                    wysłaneDane: dataToSend
+                });
+                throw error;
+            }
+
             toast.success('Dane produkcyjne zostały dodane');
             reset();
             
@@ -49,7 +84,7 @@ export default function ProductionDataEntry({ onDataAdded }) {
             }
         } catch (error) {
             console.error('Błąd dodawania danych:', error);
-            toast.error('Błąd podczas dodawania danych: ' + error.message);
+            toast.error(`Błąd podczas dodawania danych: ${error.message || 'Nieznany błąd'}`);
         } finally {
             setIsLoading(false);
         }
