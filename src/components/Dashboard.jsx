@@ -7,8 +7,8 @@ import { Link } from "react-router-dom";
 const AdminDashboard = () => (
 	<div className="p-6">
 		<h2 className="text-2xl font-bold mb-4">Panel Administratora</h2>
-		<KPISection />
-		<MachineStatus />
+		<KPISection showOnlyDashboard={true} />
+		<MachineStatus showOnlyDashboard={true} />
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 			<div className="card bg-base-100 shadow-xl">
 				<div className="card-body">
@@ -48,8 +48,8 @@ const AdminDashboard = () => (
 const ForemanDashboard = () => (
 	<div className="p-6">
 		<h2 className="text-2xl font-bold mb-4">Panel Brygadzisty</h2>
-		<KPISection />
-		<MachineStatus />
+		<KPISection showOnlyDashboard={true} />
+		<MachineStatus showOnlyDashboard={true} />
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 			<div className="card bg-base-100 shadow-xl">
 				<div className="card-body">
@@ -76,7 +76,8 @@ const ForemanDashboard = () => (
 const WorkerDashboard = () => (
 	<div className="p-6">
 		<h2 className="text-2xl font-bold mb-4">Panel Pracownika</h2>
-		<KPISection />
+		<KPISection showOnlyDashboard={true} />
+		<MachineStatus showOnlyDashboard={true} />
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 			<div className="card bg-base-100 shadow-xl">
 				<div className="card-body">

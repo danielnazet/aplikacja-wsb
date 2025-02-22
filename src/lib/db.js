@@ -24,6 +24,7 @@ export async function testConnection() {
 }
 
 export const dbOperations = {
+	
 	async getAllUsers() {
 		try {
 			const supabase = getSupabase();
@@ -44,6 +45,8 @@ export const dbOperations = {
 			throw error;
 		}
 	},
+
+	
 
 	async getUserByEmail(email) {
 		const supabase = getSupabase();

@@ -5,7 +5,8 @@ import { dbOperations } from '../lib/db';
 import ProductionDataEntry from './ProductionDataEntry';
 import { toast } from 'react-hot-toast';
 
-export default function KPISection({ data, showProductionForm = false }) {
+export default function KPISection({showProductionForm = false, showOnlyDashboard = false
+ }) {
   const [productionData, setProductionData] = useState([]);
   const user = useAuthStore(state => state.user);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -291,9 +292,8 @@ export default function KPISection({ data, showProductionForm = false }) {
     calculateKPIs();
   }, [productionData]); // Przelicz gdy zmienią się dane produkcyjne
 
-  return (
-    <div className="space-y-6">
-      {/* Sekcja KPI */}
+  if (showOnlyDashboard) {
+    return (
       <div className="card bg-base-100 shadow-xl mb-6">
         <div className="card-body">
           <h3 className="card-title">Kluczowe Wskaźniki Wydajności (KPI)</h3>
@@ -321,6 +321,40 @@ export default function KPISection({ data, showProductionForm = false }) {
           </div>
         </div>
       </div>
+    );
+  }
+
+
+  return (
+    <div className="space-y-6">
+      {/* Sekcja KPI */}
+    <div className="card bg-base-100 shadow-xl mb-6">
+      <div className="card-body">
+        <h3 className="card-title">Kluczowe Wskaźniki Wydajności (KPI)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="stat bg-base-200 rounded-box p-4">
+              <div className="stat-title">Zaplanowana produkcja (30 dni)</div>
+              <div className="stat-value">{kpiStats.totalPlanned}</div>
+              <div className="stat-desc">Suma zaplanowanych jednostek</div>
+            </div>
+          <div className="stat bg-base-200 rounded-box p-4">
+              <div className="stat-title">Wykonana produkcja (30 dni)</div>
+              <div className="stat-value">{kpiStats.totalActual}</div>
+              <div className="stat-desc">Suma wykonanych jednostek</div>
+          </div>
+          <div className="stat bg-base-200 rounded-box p-4">
+              <div className="stat-title">Wydajność produkcji</div>
+              <div className="stat-value">{kpiStats.efficiency}%</div>
+              <div className="stat-desc">Wykonanie vs Plan</div>
+          </div>
+          <div className="stat bg-base-200 rounded-box p-4">
+              <div className="stat-title">Wykorzystanie maszyn</div>
+              <div className="stat-value">{kpiStats.machineUtilization}%</div>
+              <div className="stat-desc">Maszyny działające/wszystkie</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Wykres produkcji */}
       <div className="card bg-base-100 shadow-xl">
@@ -333,8 +367,8 @@ export default function KPISection({ data, showProductionForm = false }) {
                  viewMode === 'month' ? `${new Intl.DateTimeFormat('pl-PL', { month: 'long', year: 'numeric' }).format(currentDate)}` :
                  `Rok ${currentDate.getFullYear()}`}
               </p>
-            </div>
-            
+        </div>
+
             {/* Kontrolki nawigacji */}
             <div className="flex items-center gap-4">
               <div className="btn-group">
@@ -356,7 +390,7 @@ export default function KPISection({ data, showProductionForm = false }) {
                 >
                   Rok
                 </button>
-              </div>
+                  </div>
 
               <div className="btn-group">
                 <button 
@@ -375,7 +409,7 @@ export default function KPISection({ data, showProductionForm = false }) {
                 >
                   →
                 </button>
-              </div>
+                </div>
             </div>
           </div>
 
@@ -427,7 +461,7 @@ export default function KPISection({ data, showProductionForm = false }) {
                 />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+            </div>
 
           {/* Przyciski eksportu */}
           <div className="flex justify-between mt-4">

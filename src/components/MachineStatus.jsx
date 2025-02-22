@@ -3,7 +3,7 @@ import { useAuthStore } from "../lib/store";
 import { toast } from "react-hot-toast";
 import { dbOperations } from '../lib/db';
 
-export default function MachineStatus() {
+export default function MachineStatus({showOnlyDashboard = false}) {
   const [machines, setMachines] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +58,42 @@ export default function MachineStatus() {
 
     fetchData();
   }, []);
+
+  const MachineStatusSummary = () => {
+    const workingMachines = machines.filter(m => m.status === 'working').length;
+    const serviceMachines = machines.filter(m => m.status === 'service').length;
+    const failureMachines = machines.filter(m => m.status === 'failure').length;
+
+    return (
+      <div className="card bg-base-100 shadow-xl mb-6">
+        <div className="card-body">
+          <h3 className="card-title">Stan Maszyn</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="stat bg-base-200 rounded-box p-4">
+              <div className="stat-title">Działające</div>
+              <div className="stat-value text-success">{workingMachines}</div>
+            </div>
+            <div className="stat bg-base-200 rounded-box p-4">
+              <div className="stat-title">W serwisie</div>
+              <div className="stat-value text-warning">{serviceMachines}</div>
+            </div>
+            <div className="stat bg-base-200 rounded-box p-4">
+              <div className="stat-title">Awarie</div>
+              <div className="stat-value text-error">{failureMachines}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return <div className="loading loading-spinner loading-lg"></div>;
+  }
+
+  if (showOnlyDashboard) {
+    return <MachineStatusSummary />;
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -165,6 +201,7 @@ export default function MachineStatus() {
   return (
     <div className="card bg-base-100 shadow-xl mb-6">
       <div className="card-body">
+        <MachineStatusSummary />
         <h3 className="card-title flex justify-between items-center">
           Stan Maszyn
           <div className="flex gap-2">
