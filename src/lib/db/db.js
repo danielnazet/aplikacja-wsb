@@ -61,7 +61,44 @@ export const dbOperations = {
 		try {
 			console.log('Próba dodania użytkownika:', userData);
 
-			// 1. Najpierw utwórz konto w Auth
+			// 1. Najpierw sprawdź czy użytkownik już istnieje
+			const supabase = getSupabase();
+			const { data: existingUser } = await supabase
+				.from('users')
+				.select('*')
+				.eq('email', userData.email)
+				.single();
+
+			if (existingUser) {
+				// Jeśli użytkownik istnieje, zaktualizuj jego dane w Auth i w bazie
+				const supabaseAdmin = getSupabaseAdmin();
+				await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+					email: userData.email,
+					user_metadata: {
+						first_name: userData.firstName,
+						last_name: userData.lastName,
+						role: userData.role
+					}
+				});
+
+				// Aktualizuj dane w tabeli users
+				const { data: updatedUser, error: updateError } = await supabase
+					.from('users')
+					.update({
+						first_name: userData.firstName,
+						last_name: userData.lastName,
+						role: userData.role,
+						updated_at: new Date().toISOString()
+					})
+					.eq('id', existingUser.id)
+					.select()
+					.single();
+
+				if (updateError) throw updateError;
+				return updatedUser;
+			}
+
+			// 2. Jeśli nie istnieje, utwórz nowego użytkownika w Auth
 			const supabaseAdmin = getSupabaseAdmin();
 			const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
 				email: userData.email,
@@ -74,33 +111,28 @@ export const dbOperations = {
 				}
 			});
 
-			if (authError) {
-				console.error('Błąd tworzenia użytkownika w Auth:', authError);
-				throw authError;
-			}
+			if (authError) throw authError;
 
-			// 2. Dodaj użytkownika do tabeli users
-			const supabase = getSupabase();
+			// 3. Dodaj użytkownika do tabeli users
 			const { data: dbUser, error: dbError } = await supabase
 				.from('users')
-				.upsert([{
+				.insert([{
 					id: authData.user.id,
 					email: userData.email,
 					first_name: userData.firstName,
 					last_name: userData.lastName,
 					role: userData.role,
 					password: userData.password
-				}], { onConflict: 'id' })
+				}])
 				.select()
 				.single();
 
 			if (dbError) {
-				console.error('Błąd dodawania użytkownika do bazy:', dbError);
+				// W przypadku błędu usuń użytkownika z Auth
 				await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
 				throw dbError;
 			}
 
-			console.log('Użytkownik dodany pomyślnie:', dbUser);
 			return dbUser;
 		} catch (error) {
 			console.error('Error in addUser:', error);
@@ -287,12 +319,14 @@ export const dbOperations = {
 					operator:operator_id (
 						id,
 						first_name,
-						last_name
+						last_name,
+						role
 					)
 				`)
 				.order('name', { ascending: true });
 
 			if (error) throw error;
+			console.log('Pobrane maszyny:', data);
 			return data;
 		} catch (error) {
 			console.error('Błąd pobierania maszyn:', error);
@@ -304,32 +338,42 @@ export const dbOperations = {
 		const supabase = getSupabase();
 		const { data, error } = await supabase
 			.from('users')
-			.select('id, first_name, last_name')
+			.select('id, first_name, last_name, role')
 			.eq('role', 'worker')
 			.order('first_name');
 
 		if (error) throw error;
+		console.log('Pobrani pracownicy:', data);
 		return data;
 	},
 
 	async updateMachineOperator(machineId, operatorId) {
-		const supabase = getSupabase();
-		const { data, error } = await supabase
-			.from('machines')
-			.update({ operator_id: operatorId })
-			.eq('id', machineId)
-			.select(`
-				*,
-				operator:operator_id(
-					id,
-					first_name,
-					last_name
-				)
-			`)
-			.single();
+		try {
+			const supabase = getSupabase();
+			const { data, error } = await supabase
+				.from('machines')
+				.update({ 
+					operator_id: operatorId || null,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', machineId)
+				.select(`
+					*,
+					operator:operator_id(
+						id,
+						first_name,
+						last_name,
+						role
+					)
+				`)
+				.single();
 
-		if (error) throw error;
-		return data;
+			if (error) throw error;
+			return data;
+		} catch (error) {
+			console.error('Błąd aktualizacji operatora:', error);
+			throw error;
+		}
 	},
 
 	async updateMachineStatus(machineId, status, failureReason = null) {

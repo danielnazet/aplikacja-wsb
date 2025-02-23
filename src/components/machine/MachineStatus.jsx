@@ -34,8 +34,9 @@ export default function MachineStatus({showOnlyDashboard = false}) {
           dbOperations.getProductionLines()
         ]);
 
+        console.log('Pobrani pracownicy:', workersData);
         setMachines(machinesData);
-        setWorkers(workersData);
+        setWorkers(workersData.filter(w => w.role === 'worker'));
         setProductionLines(linesData);
 
         const totalPlanned = productionData.reduce((sum, record) => sum + Number(record.planned_units), 0);
@@ -247,35 +248,43 @@ export default function MachineStatus({showOnlyDashboard = false}) {
                 <div className="text-sm mt-2">
                   <div className="flex justify-between items-center">
                     <span>Operator:</span>
-                    {editingOperator === machine.id ? (
-                      <select
-                        className="select select-sm select-bordered"
-                        value={machine.operator?.id || ''}
-                        onChange={(e) => handleOperatorChange(machine.id, e.target.value)}
-                      >
-                        <option value="">Wybierz operatora</option>
-                        {workers.map(worker => (
-                          <option key={worker.id} value={worker.id}>
-                            {worker.first_name} {worker.last_name}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span>
-                          {machine.operator ? 
-                            `${machine.operator.first_name} ${machine.operator.last_name}` : 
-                            'Brak operatora'}
-                        </span>
-                        {(user?.role === 'admin' || user?.role === 'foreman') && (
+                    {(user?.role === 'admin' || user?.role === 'foreman') ? (
+                      editingOperator === machine.id ? (
+                        <select
+                          className="select select-bordered select-sm"
+                          value={machine.operator_id || ''}
+                          onChange={(e) => handleOperatorChange(machine.id, e.target.value)}
+                        >
+                          <option value="">Brak operatora</option>
+                          {workers.map(worker => (
+                            <option key={worker.id} value={worker.id}>
+                              {worker.first_name} {worker.last_name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {machine.operator ? 
+                              `${machine.operator.first_name} ${machine.operator.last_name}` : 
+                              'Brak operatora'
+                            }
+                          </span>
                           <button
                             className="btn btn-xs btn-ghost"
                             onClick={() => setEditingOperator(machine.id)}
                           >
                             ✏️
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )
+                    ) : (
+                      <span>
+                        {machine.operator ? 
+                          `${machine.operator.first_name} ${machine.operator.last_name}` : 
+                          'Brak operatora'
+                        }
+                      </span>
                     )}
                   </div>
                   <div className="flex justify-between items-center mb-2">

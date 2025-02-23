@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuthStore } from "../../lib";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
 // Form validation schema
 const schema = z.object({
@@ -15,6 +16,7 @@ export default function LoginForm() {
 	const signIn = useAuthStore((state) => state.signIn);
 	const error = useAuthStore((state) => state.error);
 	const navigate = useNavigate();
+	const [showPassword, setShowPassword] = useState(false);
 
 	const {
 		register,
@@ -31,6 +33,7 @@ export default function LoginForm() {
 			navigate('/'); // Przekieruj do głównej strony po zalogowaniu
 		} catch (error) {
 			console.error("Login failed:", error);
+			toast.error("Błąd logowania: " + error.message);
 			setError("root", {
 				message: "Nieprawidłowy email lub hasło",
 			});
@@ -62,12 +65,21 @@ export default function LoginForm() {
 					<label className="label">
 						<span className="label-text">Hasło</span>
 					</label>
-					<input
-						type="password"
-						{...register("password")}
-						className="input input-bordered w-full"
-						placeholder="Wprowadź hasło"
-					/>
+					<div className="relative">
+						<input
+							type={showPassword ? "text" : "password"}
+							{...register("password")}
+							className="input input-bordered w-full"
+							placeholder="Wprowadź hasło"
+						/>
+						<button
+							type="button"
+							className="absolute right-2 top-1/2 transform -translate-y-1/2 btn btn-ghost btn-sm"
+							onClick={() => setShowPassword(!showPassword)}
+						>
+							{showPassword ? "👁️" : "👁️‍🗨️"}
+						</button>
+					</div>
 					{errors.password && (
 						<span className="text-error text-sm">
 							{errors.password.message}
