@@ -1,4 +1,4 @@
-import { getSupabase, getSupabaseAdmin } from './supabase';
+import { getSupabase, getSupabaseAdmin } from '../api/supabase';
 
 // Funkcja testowa do sprawdzenia połączenia
 export async function testConnection() {
@@ -195,10 +195,14 @@ export const dbOperations = {
 
 	async addProductionData(data) {
 		const supabase = getSupabase();
-		return await supabase
+		const { error } = await supabase
 			.from('production_data')
-			.insert([data])
-			.select();
+			.insert([{
+				...data
+			}]);
+			
+		if (error) throw error;
+		return { error: null };
 	},
 
 	async getProductionData(startDate, endDate) {
@@ -376,6 +380,139 @@ export const dbOperations = {
 
 		if (error) throw error;
 		return data;
+	},
+
+	async getProductionLines() {
+		try {
+			const supabase = getSupabase();
+			const { data, error } = await supabase
+				.from('production_lines')
+				.select('*')
+				.order('name');
+				
+			if (error) throw error;
+			return data;
+		} catch (error) {
+			console.error('Błąd pobierania linii produkcyjnych:', error);
+			throw error;
+		}
+	},
+
+	async getMachinesForLine(lineId) {
+		try {
+			const supabase = getSupabase();
+			const { data, error } = await supabase
+				.from('machines')
+				.select('*')
+				.eq('production_line_id', lineId)
+				.order('name');
+				
+			if (error) throw error;
+			return data;
+		} catch (error) {
+			console.error('Błąd pobierania maszyn:', error);
+			throw error;
+		}
+	},
+
+	async setupProductionLines() {
+		try {
+			const supabase = getSupabase();
+			
+			// Sprawdź uprawnienia
+			const { data: { user }, error: authError } = await supabase.auth.getUser();
+			if (authError) throw authError;
+
+			// Pobierz aktualną rolę z tabeli users
+			const { data: userData, error: userError } = await supabase
+				.from('users')
+				.select('role')
+				.eq('id', user.id)
+				.single();
+
+			if (userError) throw userError;
+
+			if (userData.role !== 'admin') {
+				throw new Error('Brak uprawnień do inicjalizacji linii produkcyjnych');
+			}
+
+			const productionLines = [
+				{
+					name: 'Linia A',
+					description: 'Główna linia montażowa',
+					capacity: 1000,
+					status: 'active',
+					type: 'assembly'
+				},
+				{
+					name: 'Linia B',
+					description: 'Linia pakowania',
+					capacity: 800,
+					status: 'active',
+					type: 'packaging'
+				},
+				{
+					name: 'Linia C',
+					description: 'Linia kontroli jakości',
+					capacity: 500,
+					status: 'active',
+					type: 'quality_control'
+				},
+				{
+					name: 'Linia D',
+					description: 'Linia testowa',
+					capacity: 300,
+					status: 'active',
+					type: 'testing'
+				}
+			];
+
+			const { data, error } = await supabase
+				.from('production_lines')
+				.upsert(productionLines, {
+					onConflict: 'name',
+					returning: true
+				});
+
+			if (error) throw error;
+			return data;
+
+		} catch (error) {
+			console.error('Błąd podczas tworzenia linii produkcyjnych:', error);
+			throw error;
+		}
+	},
+
+	async updateMachineLine(machineId, lineId) {
+		try {
+			const supabase = getSupabase();
+			const { data, error } = await supabase
+				.from('machines')
+				.update({ 
+					production_line_id: lineId || null,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', machineId)
+				.select(`
+					*,
+					operator:operator_id(
+						id,
+						first_name,
+						last_name
+					),
+					production_line:production_line_id(
+						id,
+						name
+					)
+				`)
+				.single();
+
+			if (error) throw error;
+			return data;
+		} catch (error) {
+			console.error('Błąd aktualizacji linii:', error);
+			throw error;
+		}
 	}
 };
 

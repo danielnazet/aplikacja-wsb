@@ -1,4 +1,4 @@
-import { getSupabase } from './supabase';
+import { getSupabase } from '../api/supabase';
 
 export const auth = {
     async signIn(email, password) {
@@ -6,10 +6,27 @@ export const auth = {
             console.log('Próba logowania:', { email });
             const supabase = getSupabase();
 
-            // Najpierw zaloguj przez Supabase Auth
+            // Najpierw sprawdź czy użytkownik istnieje w tabeli users
+            const { data: existingUser, error: userError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('email', email)
+                .single();
+
+            if (userError && userError.code !== 'PGRST116') {
+                console.error('Błąd sprawdzania użytkownika:', userError);
+                throw userError;
+            }
+
+            // Logowanie przez Supabase Auth
             const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email,
-                password
+                password,
+                options: {
+                    data: {
+                        role: existingUser?.role || 'worker'
+                    }
+                }
             });
 
             if (authError) {
@@ -20,36 +37,16 @@ export const auth = {
                 throw authError;
             }
 
-            // Sprawdź czy użytkownik istnieje w tabeli users
-            const { data: userData, error: userError } = await supabase
+            // Pobierz dane użytkownika z naszej tabeli
+            const { data: userData, error: userDataError } = await supabase
                 .from('users')
                 .select('*')
-                .eq('id', authData.user.id)
+                .eq('email', email)
                 .single();
 
-            if (userError || !userData) {
-                // Jeśli nie istnieje, dodaj go
-                const { data: newUser, error: insertError } = await supabase
-                    .from('users')
-                    .insert([{
-                        id: authData.user.id,
-                        email: authData.user.email,
-                        first_name: authData.user.user_metadata?.first_name || '',
-                        last_name: authData.user.user_metadata?.last_name || '',
-                        role: authData.user.user_metadata?.role || 'worker'
-                    }])
-                    .select()
-                    .single();
-
-                if (insertError) {
-                    console.error('Błąd dodawania użytkownika do bazy:', insertError);
-                    throw insertError;
-                }
-
-                return {
-                    ...authData,
-                    user: newUser
-                };
+            if (userDataError) {
+                console.error('Błąd pobierania danych użytkownika:', userDataError);
+                throw userDataError;
             }
 
             return {

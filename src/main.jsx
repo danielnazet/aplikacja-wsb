@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App";
-import { testConnection } from "./lib/db";
+import { testConnection } from "./lib";
 
 // Initialize database before rendering
 async function init() {

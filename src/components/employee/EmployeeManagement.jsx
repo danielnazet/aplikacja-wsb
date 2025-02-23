@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useAuthStore, useStore } from "../lib/store";
-import { dbOperations } from "../lib/db";
+import { useAuthStore, useStore } from "../../lib";
+import { dbOperations } from "../../lib/db/db";
 import { toast } from "react-hot-toast";
 import AddEmployeeModal from './AddEmployeeModal';
 

@@ -1,24 +1,33 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
-import Sidebar from "./components/Sidebar";
-import Navbar from "./components/Navbar";
-import Dashboard from "./components/Dashboard";
-import LoginForm from "./components/LoginForm";
-import { useAuthStore, useStore } from "./lib/store";
-import EmployeeManagement from "./components/EmployeeManagement";
-import SavingsProjects from "./components/SavingsProjects";
-import TaskManagement from "./components/TaskManagement";
-import Footer from "./components/Footer";
-import KPISection from "./components/KPISection";
-import MachineStatus from "./components/MachineStatus";
-import ProductionSchedule from "./components/ProductionSchedule";
-import EmployeeAttendance from "./components/EmployeeAttendance";
-import AlertSystem from "./components/AlertSystem";
-import QualityTracking from "./components/QualityTracking";
-import AnalyticsModule from "./components/AnalyticsModule";
+import PrivateRoute from "./components/auth/PrivateRoute";
+
+// Komponenty nawigacyjne
+import Sidebar from "./components/nav/Sidebar";
+import Navbar from "./components/nav/Navbar";
+import Footer from "./components/nav/Footer";
+
+// Komponenty główne
+import Dashboard from "./components/dashboard/Dashboard";
+import LoginForm from "./components/login/LoginForm";
+import { useAuthStore, useStore } from "./lib";
+
+// Komponenty modułów
+import EmployeeManagement from "./components/employee/EmployeeManagement";
+import SavingsProjects from "./components/projects/SavingsProjects";
+import TaskManagement from "./components/tasks/TaskManagement";
+import KPISection from "./components/kpi/KPISection";
+import MachineStatus from "./components/machine/MachineStatus";
+import ProductionSchedule from "./components/production/ProductionSchedule";
+import ProductionDataEntry from "./components/production/ProductionDataEntry";
+import EmployeeAttendance from "./components/employee/EmployeeAttendance";
+import AlertSystem from "./components/shared/AlertSystem";
+import QualityTracking from "./components/quality/QualityTracking";
+import AnalyticsModule from "./components/analytics/AnalyticsModule";
+import ProductionLines from "./components/production/ProductionLines";
+
 import { Toaster } from 'react-hot-toast';
-import ProductionDataEntry from './components/ProductionDataEntry';
 
 // Mockowane dane KPI
 const mockKPIData = {
@@ -377,6 +386,14 @@ function App() {
 										(user?.role === 'admin' || user?.role === 'worker') 
 											? <ProductionDataEntry /> 
 											: <Navigate to="/" />
+									} 
+								/>
+								<Route 
+									path="/production-lines" 
+									element={
+										<PrivateRoute roles={['admin', 'foreman']}>
+											<ProductionLines />
+										</PrivateRoute>
 									} 
 								/>
 							</Routes>

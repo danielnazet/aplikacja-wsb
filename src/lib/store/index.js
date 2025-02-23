@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { auth } from './auth';
-import { getSupabase } from './supabase';
+import { getSupabase } from '../api/supabase';
 
-// Store dla autentykacji
 export const useAuthStore = create((set) => ({
     user: null,
     session: null,
@@ -53,7 +52,6 @@ export const useAuthStore = create((set) => ({
     }
 }));
 
-// Store dla ogólnych danych aplikacji
 export const useStore = create((set) => ({
     users: [],
     setUsers: (users) => set({ users }),

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAuthStore, useStore } from "../lib/store";
-import { dbOperations } from "../lib/db";
+import { useAuthStore, useStore, dbOperations } from "../../lib";
 
 export default function TaskManagement() {
 	// Form state

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { toast } from 'react-hot-toast';
-import { dbOperations } from '../lib/db';
+import { dbOperations } from '../../lib/db/db';
 
 const schema = z.object({
     email: z.string().email('Nieprawidłowy adres email'),

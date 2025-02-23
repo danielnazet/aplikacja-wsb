@@ -1,7 +1,8 @@
-import React from "react";
-import { useAuthStore } from "../lib/store";
-import KPISection from "./KPISection";
-import MachineStatus from "./MachineStatus";
+import React, { useState } from "react";
+import { useAuthStore, dbOperations } from "../../lib";
+import { toast } from "react-hot-toast";
+import KPISection from "../kpi/KPISection";
+import MachineStatus from "../machine/MachineStatus";
 import { Link } from "react-router-dom";
 
 const AdminDashboard = () => (

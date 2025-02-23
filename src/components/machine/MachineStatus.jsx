@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useAuthStore } from "../lib/store";
+import { useAuthStore } from "../../lib";
 import { toast } from "react-hot-toast";
-import { dbOperations } from '../lib/db';
+import { dbOperations } from '../../lib/db/db';
 
 export default function MachineStatus({showOnlyDashboard = false}) {
   const [machines, setMachines] = useState([]);
@@ -17,22 +17,26 @@ export default function MachineStatus({showOnlyDashboard = false}) {
     efficiency: 0,
     machineUtilization: 0
   });
+  const [productionLines, setProductionLines] = useState([]);
+  const [editingLine, setEditingLine] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [machinesData, workersData, productionData] = await Promise.all([
+        const [machinesData, workersData, productionData, linesData] = await Promise.all([
           dbOperations.getMachines(),
           dbOperations.getWorkers(),
           dbOperations.getProductionData(
             new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             new Date().toISOString().split('T')[0]
-          )
+          ),
+          dbOperations.getProductionLines()
         ]);
 
         setMachines(machinesData);
         setWorkers(workersData);
+        setProductionLines(linesData);
 
         const totalPlanned = productionData.reduce((sum, record) => sum + Number(record.planned_units), 0);
         const totalActual = productionData.reduce((sum, record) => sum + Number(record.actual_units), 0);
@@ -186,6 +190,18 @@ export default function MachineStatus({showOnlyDashboard = false}) {
     }
   };
 
+  const handleLineChange = async (machineId, lineId) => {
+    try {
+      const updatedMachine = await dbOperations.updateMachineLine(machineId, lineId);
+      setMachines(machines.map(m => m.id === machineId ? updatedMachine : m));
+      setEditingLine(null);
+      toast.success('Linia produkcyjna została zaktualizowana');
+    } catch (error) {
+      console.error('Błąd aktualizacji linii:', error);
+      toast.error('Nie udało się zaktualizować linii produkcyjnej');
+    }
+  };
+
   if (loading) {
     return (
       <div className="card bg-base-100 shadow-xl mb-6">
@@ -255,6 +271,37 @@ export default function MachineStatus({showOnlyDashboard = false}) {
                           <button
                             className="btn btn-xs btn-ghost"
                             onClick={() => setEditingOperator(machine.id)}
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span>Linia produkcyjna:</span>
+                    {editingLine === machine.id ? (
+                      <select
+                        className="select select-sm select-bordered"
+                        value={machine.production_line_id || ''}
+                        onChange={(e) => handleLineChange(machine.id, e.target.value)}
+                      >
+                        <option value="">Brak przypisania</option>
+                        {productionLines.map(line => (
+                          <option key={line.id} value={line.id}>
+                            {line.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {productionLines.find(l => l.id === machine.production_line_id)?.name || 'Brak przypisania'}
+                        </span>
+                        {(user?.role === 'admin' || user?.role === 'foreman') && (
+                          <button
+                            className="btn btn-xs btn-ghost"
+                            onClick={() => setEditingLine(machine.id)}
                           >
                             ✏️
                           </button>

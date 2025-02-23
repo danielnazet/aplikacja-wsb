@@ -1,16 +1,10 @@
 import React, { useState } from "react";
-import { useAuthStore } from "../lib/store";
+import { useAuthStore } from "../../lib";
 import { Link, useLocation } from "react-router-dom";
 
 export default function Sidebar({ isOpen }) {
-	const [activeDropdown, setActiveDropdown] = useState(null);
 	const user = useAuthStore((state) => state.user);
 	const location = useLocation();
-
-	const toggleDropdown = (name, e) => {
-		e.preventDefault();
-		setActiveDropdown(activeDropdown === name ? null : name);
-	};
 
 	return (
 		<div className="drawer-side z-40">
@@ -206,30 +200,14 @@ export default function Sidebar({ isOpen }) {
 						</Link>
 					</li>
 
-					{(user?.role === 'admin' || user?.role === 'worker') && (
-						<li>
-							<Link
-								to="/production"
-								className={location.pathname === "/production" ? "active" : ""}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									className="h-5 w-5"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-									/>
-								</svg>
-								Zarządzanie Produkcją
-							</Link>
-						</li>
-					)}
+					<li>
+						<Link to="/production-lines" className="flex items-center p-2 space-x-3">
+							<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+							</svg>
+							<span>Linie Produkcyjne</span>
+						</Link>
+					</li>
 				</ul>
 			</aside>
 		</div>

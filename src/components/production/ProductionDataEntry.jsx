@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useAuthStore } from '../lib/store';
-import { dbOperations } from '../lib/db';
+import React, { useState, useEffect } from 'react';
+import { useAuthStore } from '../../lib';
+import { dbOperations } from '../../lib/db/db';
 import { toast } from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -11,12 +11,15 @@ const schema = z.object({
     shift: z.enum(['morning', 'afternoon', 'night']),
     planned_units: z.number().min(0),
     actual_units: z.number().min(0),
-    product_type: z.string().min(1)
+    product_type: z.string().min(1),
+    production_line_id: z.string().min(1)
 });
 
 export default function ProductionDataEntry({ onDataAdded }) {
     const { user } = useAuthStore();
     const [isLoading, setIsLoading] = useState(false);
+    const [productionLines, setProductionLines] = useState([]);
+    const [machines, setMachines] = useState([]);
 
     const {
         register,
@@ -30,9 +33,37 @@ export default function ProductionDataEntry({ onDataAdded }) {
             shift: 'morning',
             planned_units: 0,
             actual_units: 0,
-            product_type: ''
+            product_type: '',
+            production_line_id: '',
+            machine_id: ''
         }
     });
+
+    // Pobierz linie i maszyny przy ładowaniu komponentu
+    useEffect(() => {
+        const loadProductionData = async () => {
+            try {
+                const lines = await dbOperations.getProductionLines();
+                setProductionLines(lines);
+            } catch (error) {
+                console.error('Błąd ładowania linii produkcyjnych:', error);
+                toast.error('Nie udało się załadować linii produkcyjnych');
+            }
+        };
+        
+        loadProductionData();
+    }, []);
+
+    // Pobierz maszyny dla wybranej linii
+    const loadMachinesForLine = async (lineId) => {
+        try {
+            const machines = await dbOperations.getMachinesForLine(lineId);
+            setMachines(machines);
+        } catch (error) {
+            console.error('Błąd ładowania maszyn:', error);
+            toast.error('Nie udało się załadować maszyn');
+        }
+    };
 
     const onSubmit = async (formData) => {
         if (!user?.id) {
@@ -159,6 +190,29 @@ export default function ProductionDataEntry({ onDataAdded }) {
                         />
                         {errors.product_type && (
                             <span className="text-error text-sm">{errors.product_type.message}</span>
+                        )}
+                    </div>
+
+                    <div className="form-control">
+                        <label className="label">
+                            <span className="label-text">Linia produkcyjna</span>
+                        </label>
+                        <select 
+                            {...register('production_line_id')}
+                            className="select select-bordered"
+                            onChange={(e) => {
+                                loadMachinesForLine(e.target.value);
+                            }}
+                        >
+                            <option value="">Wybierz linię</option>
+                            {productionLines.map(line => (
+                                <option key={line.id} value={line.id}>
+                                    {line.name}
+                                </option>
+                            ))}
+                        </select>
+                        {errors.production_line_id && (
+                            <span className="text-error text-sm">{errors.production_line_id.message}</span>
                         )}
                     </div>
 

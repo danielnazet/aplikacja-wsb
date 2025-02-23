@@ -7,7 +7,7 @@ export default function Footer({ className = "" }) {
 		>
 			<div className="flex flex-col md:flex-row items-center justify-between w-full max-w-6xl mx-auto px-4">
 				<div className="flex items-center gap-2">
-					<span className="text-lg font-semibold">S & D - Dashboard</span>
+					<span className="text-lg font-semibold"> D - Dashboard</span>
 					<span className="text-sm">
 						© {new Date().getFullYear()} All rights reserved
 					</span>
