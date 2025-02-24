@@ -367,7 +367,7 @@ function App() {
 						onChange={(e) => setSidebarOpen(e.target.checked)}
 					/>
 					<div className="drawer-content flex flex-col">
-						<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+			<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 						<main className="flex-1 overflow-y-auto bg-base-200 pt-4">
 							<Routes>
 								<Route path="/" element={<Dashboard />} />

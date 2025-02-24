@@ -157,12 +157,44 @@ export const dbOperations = {
 	},
 
 	async deleteUser(userId) {
-		const supabase = getSupabase();
-		const { data, error } = await supabase
-			.rpc('delete_user', { p_user_id: userId });
-			
-		if (error) throw error;
-		return data;
+		try {
+			const supabase = getSupabase();
+
+			// 1. Najpierw usuń powiązania z maszynami
+			const { error: machineError } = await supabase
+				.from('machines')
+				.update({ operator_id: null })
+				.eq('operator_id', userId);
+
+			if (machineError) throw machineError;
+
+			// 2. Usuń rekordy obecności
+			const { error: attendanceError } = await supabase
+				.from('attendance')
+				.delete()
+				.eq('user_id', userId);
+
+			if (attendanceError) throw attendanceError;
+
+			// 3. Usuń rekordy produkcji (jeśli istnieją)
+			const { error: productionError } = await supabase
+				.from('production_data')
+				.delete()
+				.eq('created_by', userId);
+
+			if (productionError) throw productionError;
+
+			// 4. Teraz możemy usunąć użytkownika
+			const { error: userError } = await supabase
+				.rpc('delete_user', { user_id: userId });
+
+			if (userError) throw userError;
+
+			return true;
+		} catch (error) {
+			console.error('Błąd usuwania użytkownika:', error);
+			throw error;
+		}
 	},
 
 	async debugAuth() {
@@ -335,16 +367,20 @@ export const dbOperations = {
 	},
 
 	async getWorkers() {
-		const supabase = getSupabase();
-		const { data, error } = await supabase
-			.from('users')
-			.select('id, first_name, last_name, role')
-			.eq('role', 'worker')
-			.order('first_name');
+		try {
+			const supabase = getSupabase();
+			const { data, error } = await supabase
+				.from('users')
+				.select('id, first_name, last_name, role')
+				.in('role', ['worker', 'foreman'])
+				.order('first_name');
 
-		if (error) throw error;
-		console.log('Pobrani pracownicy:', data);
-		return data;
+			if (error) throw error;
+			return data;
+		} catch (error) {
+			console.error('Błąd pobierania pracowników:', error);
+			throw error;
+		}
 	},
 
 	async updateMachineOperator(machineId, operatorId) {
@@ -555,6 +591,139 @@ export const dbOperations = {
 			return data;
 		} catch (error) {
 			console.error('Błąd aktualizacji linii:', error);
+			throw error;
+		}
+	},
+
+	async getAttendance(date) {
+		try {
+			const supabase = getSupabase();
+			const { data, error } = await supabase
+				.from('attendance')
+				.select(`
+					*,
+					user:user_id (
+						id,
+						first_name,
+						last_name,
+						role
+					)
+				`)
+				.eq('date', date);
+
+			if (error) throw error;
+			return data;
+		} catch (error) {
+			console.error('Błąd pobierania obecności:', error);
+			throw error;
+		}
+	},
+
+	async updateAttendance(userId, attendanceData) {
+		try {
+			const supabase = getSupabase();
+			// Pobierz aktualnego użytkownika
+			const { data: { user }, error: authError } = await supabase.auth.getUser();
+			if (authError) throw authError;
+
+			// Sprawdź rolę użytkownika
+			const { data: userData, error: userError } = await supabase
+				.from('users')
+				.select('role')
+				.eq('id', user.id)
+				.single();
+				
+			if (userError) throw userError;
+
+			// Pozwól pracownikowi aktualizować tylko swój własny rekord
+			if (userData.role === 'worker' && userId !== user.id) {
+				throw new Error('Brak uprawnień do aktualizacji obecności innych pracowników');
+			}
+
+			// Admin i brygadzista mogą aktualizować wszystkie rekordy
+			// Pracownik może aktualizować tylko swój rekord
+			if (['admin', 'foreman'].includes(userData.role) || userId === user.id) {
+				const { data, error } = await supabase
+					.from('attendance')
+					.upsert({
+						user_id: userId,
+						date: new Date().toISOString().split('T')[0],
+						shift: attendanceData.shift,
+						status: attendanceData.status,
+						check_in: attendanceData.checkIn,
+						check_out: attendanceData.checkOut,
+						notes: attendanceData.notes,
+						created_by: user.id
+					})
+					.select()
+					.single();
+
+				if (error) {
+					console.error('Błąd Supabase:', error);
+					throw error;
+				}
+				
+				return data;
+			} else {
+				throw new Error('Brak uprawnień do aktualizacji obecności');
+			}
+		} catch (error) {
+			console.error('Błąd aktualizacji obecności:', error);
+			throw error;
+		}
+	},
+
+	async updateAttendanceRecord(recordId, attendanceData) {
+		try {
+			const supabase = getSupabase();
+			const { data: { user }, error: authError } = await supabase.auth.getUser();
+			if (authError) throw authError;
+
+			// Najpierw pobierz rekord, żeby sprawdzić czy należy do użytkownika
+			const { data: existingRecord, error: recordError } = await supabase
+				.from('attendance')
+				.select('user_id, shift')
+				.eq('id', recordId)
+				.single();
+
+			if (recordError) throw recordError;
+
+			// Sprawdź rolę użytkownika
+			const { data: userData, error: userError } = await supabase
+				.from('users')
+				.select('role')
+				.eq('id', user.id)
+				.single();
+				
+			if (userError) throw userError;
+
+			// Pozwól pracownikowi aktualizować tylko swój własny rekord
+			if (userData.role === 'worker' && existingRecord.user_id !== user.id) {
+				throw new Error('Brak uprawnień do aktualizacji obecności innych pracowników');
+			}
+
+			const { data, error } = await supabase
+				.from('attendance')
+				.update({
+					status: attendanceData.status,
+					check_in: attendanceData.checkIn,
+					check_out: attendanceData.checkOut,
+					notes: attendanceData.notes,
+					shift: existingRecord.shift,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', recordId)
+				.select()
+				.single();
+
+			if (error) {
+				console.error('Błąd Supabase:', error);
+				throw error;
+			}
+			
+			return data;
+		} catch (error) {
+			console.error('Błąd aktualizacji rekordu obecności:', error);
 			throw error;
 		}
 	}

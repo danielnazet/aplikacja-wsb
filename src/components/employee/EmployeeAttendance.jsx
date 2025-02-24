@@ -1,145 +1,368 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuthStore, dbOperations, getSupabase } from "../../lib";
+import { toast } from 'react-hot-toast';
 
-export default function EmployeeAttendance({ attendanceData }) {
+export default function EmployeeAttendance() {
+    const [attendanceData, setAttendanceData] = useState([]);
+    const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showCheckInModal, setShowCheckInModal] = useState(false);
-  const [selectedShift, setSelectedShift] = useState('morning');
+    const user = useAuthStore(state => state.user);
+    const [selectedWorker, setSelectedWorker] = useState('all');
+    const [workers, setWorkers] = useState([]);
 
-  const shifts = {
-    morning: "6:00 - 14:00",
-    afternoon: "14:00 - 22:00",
-    night: "22:00 - 6:00"
-  };
+    useEffect(() => {
+        const loadWorkers = async () => {
+            try {
+                const workersData = await dbOperations.getWorkers();
+                setWorkers(workersData);
+            } catch (error) {
+                console.error('Błąd pobierania pracowników:', error);
+                toast.error('Nie udało się pobrać listy pracowników');
+            }
+        };
+
+        if (user?.role === 'admin' || user?.role === 'foreman') {
+            loadWorkers();
+        }
+    }, [user]);
+
+    useEffect(() => {
+        loadAttendanceData();
+    }, [selectedDate, selectedWorker]);
+
+    const loadAttendanceData = async () => {
+        try {
+            setLoading(true);
+            const [workersData, attendanceRecords] = await Promise.all([
+                dbOperations.getWorkers(),
+                dbOperations.getAttendance(selectedDate)
+            ]);
+
+            let filteredWorkersData = workersData;
+            if (!canEditOthers) {
+                // Jeśli to zwykły pracownik, pokaż tylko jego rekord
+                filteredWorkersData = workersData.filter(w => w.id === user.id);
+            } else if (selectedWorker !== 'all') {
+                // Dla admina/brygadzisty z wybranym pracownikiem
+                filteredWorkersData = workersData.filter(w => w.id === selectedWorker);
+            }
+
+            const combinedData = filteredWorkersData.map(worker => {
+                const attendance = attendanceRecords.find(a => a.user_id === worker.id) || {};
+                return {
+                    id: worker.id,
+                    name: `${worker.first_name} ${worker.last_name}`,
+                    position: worker.role,
+                    shift: attendance.shift || "morning",
+                    checkIn: attendance.check_in,
+                    checkOut: attendance.check_out,
+                    status: attendance.status || "absent",
+                    notes: attendance.notes || ""
+                };
+            });
+
+            setAttendanceData(combinedData);
+        } catch (error) {
+            console.error('Błąd ładowania danych:', error);
+            toast.error('Nie udało się załadować danych obecności');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStatusChange = async (workerId, newStatus) => {
+        try {
+            const record = attendanceData.find(r => r.id === workerId);
+            
+            // Pobierz istniejący rekord z bazy
+            const supabase = getSupabase();
+            const { data: existingRecord } = await supabase
+                .from('attendance')
+                .select('id')
+                .eq('user_id', workerId)
+                .eq('date', selectedDate)
+                .eq('shift', record.shift)
+                .single();
+
+            if (existingRecord) {
+                // Jeśli rekord istnieje, zaktualizuj go
+                await dbOperations.updateAttendanceRecord(existingRecord.id, {
+                    status: newStatus,
+                    checkIn: record.checkIn,
+                    checkOut: record.checkOut,
+                    notes: record.notes,
+                    shift: record.shift
+                });
+            } else {
+                // Jeśli nie istnieje, utwórz nowy
+                const updatedRecord = {
+                    shift: record.shift,
+                    status: newStatus,
+                    checkIn: newStatus === 'present' ? new Date().toISOString() : null,
+                    checkOut: newStatus === 'absent' ? new Date().toISOString() : null,
+                    notes: record.notes || ''
+                };
+                await dbOperations.updateAttendance(workerId, updatedRecord);
+            }
+
+            await loadAttendanceData(); // Odśwież dane
+            toast.success('Status obecności zaktualizowany');
+        } catch (error) {
+            console.error('Błąd aktualizacji statusu:', error);
+            toast.error('Nie udało się zaktualizować statusu');
+        }
+    };
+
+    const handleNotesChange = (workerId, notes) => {
+        setAttendanceData(currentData =>
+            currentData.map(record =>
+                record.id === workerId
+                    ? { ...record, notes }
+                    : record
+            )
+        );
+    };
+
+    const handleClockIn = async (workerId) => {
+        try {
+            const updatedRecord = {
+                shift: attendanceData.find(r => r.id === workerId).shift,
+                status: 'present',
+                checkIn: new Date().toISOString(),
+                checkOut: null,
+                notes: ''
+            };
+
+            await dbOperations.updateAttendance(workerId, updatedRecord);
+            await loadAttendanceData();
+            toast.success('Zarejestrowano przyjście do pracy');
+        } catch (error) {
+            console.error('Błąd rejestracji przyjścia:', error);
+            toast.error('Nie udało się zarejestrować przyjścia');
+        }
+    };
+
+    const handleClockOut = async (workerId) => {
+        try {
+            const record = attendanceData.find(r => r.id === workerId);
+            const updatedRecord = {
+                ...record,
+                status: 'absent',
+                checkOut: new Date().toISOString(),
+                shift: record.shift
+            };
+
+            // Pobierz istniejący rekord z bazy
+            const supabase = getSupabase();
+            const { data: existingRecord } = await supabase
+                .from('attendance')
+                .select('id')
+                .eq('user_id', workerId)
+                .eq('date', new Date().toISOString().split('T')[0])
+                .eq('shift', record.shift)
+                .single();
+
+            if (existingRecord) {
+                // Jeśli rekord istnieje, zaktualizuj go
+                await dbOperations.updateAttendanceRecord(existingRecord.id, {
+                    status: 'absent',
+                    checkIn: record.checkIn,
+                    checkOut: new Date().toISOString(),
+                    notes: record.notes,
+                    shift: record.shift
+                });
+            } else {
+                // Jeśli nie istnieje, utwórz nowy
+                await dbOperations.updateAttendance(workerId, updatedRecord);
+            }
+
+            await loadAttendanceData();
+            toast.success('Zarejestrowano wyjście z pracy');
+        } catch (error) {
+            console.error('Błąd rejestracji wyjścia:', error);
+            toast.error('Nie udało się zarejestrować wyjścia');
+        }
+    };
+
+    // Dodaj funkcję obliczającą przepracowany czas
+    const calculateWorkedTime = (checkIn, checkOut) => {
+        if (!checkIn || !checkOut) return '-';
+        
+        const start = new Date(checkIn);
+        const end = new Date(checkOut);
+        const diffInMinutes = Math.floor((end - start) / (1000 * 60));
+        
+        const hours = Math.floor(diffInMinutes / 60);
+        const minutes = diffInMinutes % 60;
+        
+        return `${hours}h ${minutes}min`;
+    };
+
+    // Zmodyfikuj warunek sprawdzający czy użytkownik może widzieć swój rekord
+    const canSeeOwnRecord = user?.role === 'worker' || user?.role === 'foreman';
+    
+    // Zmodyfikuj warunek sprawdzający czy użytkownik może edytować inne rekordy
+    const canEditOthers = user?.role === 'admin' || user?.role === 'foreman';
+
+    // Dodaj funkcję pomocniczą do tłumaczenia stanowisk
+    const getPositionTranslation = (position) => {
+        switch (position) {
+            case 'admin': return 'Administrator';
+            case 'foreman': return 'Brygadzista';
+            case 'worker': return 'Pracownik';
+            default: return position;
+        }
+    };
+
+    if (loading) {
+        return <div className="flex justify-center p-4">Ładowanie...</div>;
+    }
 
   return (
-    <div className="space-y-6">
-      {/* Formularz wejścia do pracy */}
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
-          <h3 className="card-title">Rejestracja obecności</h3>
-          <div className="flex gap-4 items-center">
-            <button 
-              className="btn btn-primary"
-              onClick={() => setShowCheckInModal(true)}
-            >
-              Zarejestruj wejście/wyjście
-            </button>
-            <div className="flex gap-2 items-center">
-              <span>Zmiana:</span>
+        <div className="p-4 space-y-4">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-semibold">Lista Obecności</h2>
+                <div className="flex items-center gap-4">
+                    {canEditOthers && (
               <select 
-                className="select select-bordered"
-                value={selectedShift}
-                onChange={(e) => setSelectedShift(e.target.value)}
-              >
-                <option value="morning">Ranna (6:00 - 14:00)</option>
-                <option value="afternoon">Popołudniowa (14:00 - 22:00)</option>
-                <option value="night">Nocna (22:00 - 6:00)</option>
+                            className="select select-bordered select-sm"
+                            value={selectedWorker}
+                            onChange={(e) => setSelectedWorker(e.target.value)}
+                        >
+                            <option value="all">Wszyscy pracownicy</option>
+                            {workers.map(worker => (
+                                <option key={worker.id} value={worker.id}>
+                                    {worker.first_name} {worker.last_name}
+                                </option>
+                            ))}
               </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Lista obecności */}
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="card-title">Lista obecności</h3>
+                    )}
             <input
               type="date"
+                        className="input input-bordered input-sm"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="input input-bordered"
+                        max={new Date().toISOString().split('T')[0]}
             />
+                </div>
           </div>
 
+            <div className="bg-base-100 rounded-lg shadow-lg">
           <div className="overflow-x-auto">
-            <table className="table table-zebra">
+                    <table className="table table-zebra w-full">
               <thead>
                 <tr>
                   <th>Pracownik</th>
+                                <th>Stanowisko</th>
                   <th>Zmiana</th>
+                                <th>Status</th>
                   <th>Wejście</th>
                   <th>Wyjście</th>
-                  <th>Status</th>
                   <th>Przepracowane</th>
                   <th>Uwagi</th>
+                                <th>Akcje</th>
                 </tr>
               </thead>
               <tbody>
-                {attendanceData.map((record) => (
-                  <tr key={record.id}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="avatar">
-                          <div className="w-8 rounded-full">
-                            <img src={`https://ui-avatars.com/api/?name=${record.name}`} alt={record.name} />
-                          </div>
-                        </div>
-                        <div>
-                          <div className="font-bold">{record.name}</div>
-                          <div className="text-sm opacity-50">{record.position}</div>
-                        </div>
-                      </div>
+                            {attendanceData.map(record => (
+                                <tr key={record.id} className="hover">
+                                    <td className="font-medium">{record.name}</td>
+                                    <td>{getPositionTranslation(record.position)}</td>
+                                    <td>
+                                        <select 
+                                            className="select select-bordered select-sm w-full max-w-xs"
+                                            value={record.shift}
+                                            onChange={(e) => {
+                                                setAttendanceData(currentData =>
+                                                    currentData.map(r =>
+                                                        r.id === record.id
+                                                            ? { ...r, shift: e.target.value }
+                                                            : r
+                                                    )
+                                                );
+                                            }}
+                                            disabled={!canEditOthers}
+                                        >
+                                            <option value="morning">Ranna</option>
+                                            <option value="afternoon">Popołudniowa</option>
+                                            <option value="night">Nocna</option>
+                                        </select>
                     </td>
-                    <td>{shifts[record.shift]}</td>
-                    <td>{record.checkIn}</td>
-                    <td>{record.checkOut || '-'}</td>
                     <td>
-                      <div className={`badge ${
+                                        <span className={`badge ${
                         record.status === 'present' ? 'badge-success' :
-                        record.status === 'late' ? 'badge-warning' :
                         record.status === 'absent' ? 'badge-error' :
-                        'badge-ghost'
-                      }`}>
+                                            'badge-warning'
+                                        } badge-sm`}>
                         {record.status === 'present' ? 'Obecny' :
-                         record.status === 'late' ? 'Spóźniony' :
                          record.status === 'absent' ? 'Nieobecny' :
-                         record.status}
+                                             'Spóźniony'}
+                                        </span>
+                                    </td>
+                                    <td className="text-sm">{record.checkIn ? new Date(record.checkIn).toLocaleTimeString() : '-'}</td>
+                                    <td className="text-sm">{record.checkOut ? new Date(record.checkOut).toLocaleTimeString() : '-'}</td>
+                                    <td className="text-sm">{calculateWorkedTime(record.checkIn, record.checkOut)}</td>
+                                    <td>
+                                        <input
+                                            type="text"
+                                            className="input input-bordered input-sm w-full max-w-xs"
+                                            value={record.notes}
+                                            onChange={(e) => handleNotesChange(record.id, e.target.value)}
+                                            placeholder="Dodaj uwagi..."
+                                            disabled={!canEditOthers && record.id !== user.id}
+                                        />
+                                    </td>
+                                    <td>
+                                        {record.id === user.id && canSeeOwnRecord ? (
+                                            // Przyciski dla własnego rekordu (pracownik i brygadzista)
+                                            <div className="flex gap-2">
+                                                {!record.checkIn && (
+                                                    <button
+                                                        className="btn btn-xs btn-success"
+                                                        onClick={() => handleClockIn(record.id)}
+                                                    >
+                                                        Przyjście
+                                                    </button>
+                                                )}
+                                                {record.checkIn && !record.checkOut && (
+                                                    <button
+                                                        className="btn btn-xs btn-warning"
+                                                        onClick={() => handleClockOut(record.id)}
+                                                    >
+                                                        Wyjście
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : canEditOthers ? (
+                                            // Przyciski dla innych rekordów (admin i brygadzista)
+                                            <div className="flex gap-1">
+                                                <button
+                                                    className="btn btn-xs btn-success"
+                                                    onClick={() => handleStatusChange(record.id, 'present')}
+                                                >
+                                                    ✓
+                                                </button>
+                                                <button
+                                                    className="btn btn-xs btn-error"
+                                                    onClick={() => handleStatusChange(record.id, 'absent')}
+                                                >
+                                                    ✗
+                                                </button>
+                                                <button
+                                                    className="btn btn-xs btn-warning"
+                                                    onClick={() => handleStatusChange(record.id, 'late')}
+                                                >
+                                                    ⌚
+                                                </button>
                       </div>
+                                        ) : null}
                     </td>
-                    <td>{record.hoursWorked || '-'}</td>
-                    <td>{record.notes || '-'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-      </div>
-
-      {/* Modal rejestracji */}
-      {showCheckInModal && (
-        <dialog className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg mb-4">Rejestracja czasu pracy</h3>
-            <form className="space-y-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Typ rejestracji</span>
-                </label>
-                <select className="select select-bordered">
-                  <option value="checkIn">Wejście</option>
-                  <option value="checkOut">Wyjście</option>
-                </select>
-              </div>
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Uwagi (opcjonalnie)</span>
-                </label>
-                <textarea className="textarea textarea-bordered" rows="3"></textarea>
-              </div>
-            </form>
-            <div className="modal-action">
-              <button className="btn" onClick={() => setShowCheckInModal(false)}>Anuluj</button>
-              <button className="btn btn-primary">Zatwierdź</button>
-            </div>
-          </div>
-          <form method="dialog" className="modal-backdrop">
-            <button onClick={() => setShowCheckInModal(false)}>close</button>
-          </form>
-        </dialog>
-      )}
     </div>
   );
 } 
