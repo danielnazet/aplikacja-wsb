@@ -5,6 +5,8 @@ import { toast } from 'react-hot-toast';
 export default function ProductionLines() {
     const [lines, setLines] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [editingLine, setEditingLine] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const user = useAuthStore(state => state.user);
 
     useEffect(() => {
@@ -24,20 +26,45 @@ export default function ProductionLines() {
         }
     };
 
-    const initializeLines = async () => {
-        try {
-            if (user?.role !== 'admin') {
-                toast.error('Tylko administrator może inicjalizować linie produkcyjne');
-                return;
-            }
+    const handleEdit = (line) => {
+        setEditingLine(line);
+        setIsModalOpen(true);
+    };
 
-            await dbOperations.setupProductionLines();
-            toast.success('Linie produkcyjne zostały utworzone');
+    const handleDelete = async (id) => {
+        if (window.confirm('Czy na pewno chcesz usunąć tę linię produkcyjną?')) {
+            try {
+                await dbOperations.deleteProductionLine(id);
+                toast.success('Linia produkcyjna została usunięta');
+                await loadLines();
+            } catch (error) {
+                console.error('Błąd usuwania linii:', error);
+                toast.error('Nie udało się usunąć linii produkcyjnej');
+            }
+        }
+    };
+
+    const handleSave = async (formData) => {
+        try {
+            if (editingLine) {
+                await dbOperations.updateProductionLine(editingLine.id, formData);
+                toast.success('Linia produkcyjna została zaktualizowana');
+            } else {
+                await dbOperations.createProductionLine(formData);
+                toast.success('Nowa linia produkcyjna została dodana');
+            }
+            setIsModalOpen(false);
+            setEditingLine(null);
             await loadLines();
         } catch (error) {
-            console.error('Błąd inicjalizacji linii:', error);
-            toast.error(`Nie udało się utworzyć linii produkcyjnych: ${error.message}`);
+            console.error('Błąd zapisywania linii:', error);
+            toast.error('Nie udało się zapisać linii produkcyjnej');
         }
+    };
+
+    const handleAddNew = () => {
+        setEditingLine(null);
+        setIsModalOpen(true);
     };
 
     const getStatusBadgeColor = (status) => {
@@ -60,9 +87,9 @@ export default function ProductionLines() {
                 {user?.role === 'admin' && (
                     <button 
                         className="btn btn-primary"
-                        onClick={initializeLines}
+                        onClick={handleAddNew}
                     >
-                        Inicjalizuj Linie
+                        Dodaj Linię
                     </button>
                 )}
             </div>
@@ -88,10 +115,16 @@ export default function ProductionLines() {
                             </div>
                             {user?.role === 'admin' && (
                                 <div className="card-actions justify-end mt-4">
-                                    <button className="btn btn-sm btn-outline">
+                                    <button 
+                                        className="btn btn-sm btn-outline"
+                                        onClick={() => handleEdit(line)}
+                                    >
                                         Edytuj
                                     </button>
-                                    <button className="btn btn-sm btn-outline btn-error">
+                                    <button 
+                                        className="btn btn-sm btn-outline btn-error"
+                                        onClick={() => handleDelete(line.id)}
+                                    >
                                         Usuń
                                     </button>
                                 </div>
@@ -100,6 +133,133 @@ export default function ProductionLines() {
                     </div>
                 ))}
             </div>
+
+            {isModalOpen && (
+                <div className="modal modal-open">
+                    <div className="modal-box">
+                        <h3 className="font-bold text-lg">
+                            {editingLine ? 'Edytuj Linię Produkcyjną' : 'Dodaj Nową Linię Produkcyjną'}
+                        </h3>
+                        <ProductionLineForm 
+                            initialData={editingLine}
+                            onSubmit={handleSave}
+                            onCancel={() => {
+                                setIsModalOpen(false);
+                                setEditingLine(null);
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
+    );
+}
+
+function ProductionLineForm({ initialData, onSubmit, onCancel }) {
+    const [formData, setFormData] = useState({
+        name: initialData?.name || '',
+        description: initialData?.description || '',
+        capacity: initialData?.capacity || 0,
+        status: initialData?.status || 'active',
+        type: initialData?.type || 'assembly'
+    });
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: name === 'capacity' ? parseInt(value) || 0 : value
+        }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSubmit(formData);
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="form-control">
+                <label className="label">
+                    <span className="label-text">Nazwa</span>
+                </label>
+                <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="input input-bordered"
+                    required
+                />
+            </div>
+
+            <div className="form-control">
+                <label className="label">
+                    <span className="label-text">Opis</span>
+                </label>
+                <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    className="textarea textarea-bordered"
+                />
+            </div>
+
+            <div className="form-control">
+                <label className="label">
+                    <span className="label-text">Wydajność (jednostek/dzień)</span>
+                </label>
+                <input
+                    type="number"
+                    name="capacity"
+                    value={formData.capacity}
+                    onChange={handleChange}
+                    className="input input-bordered"
+                    required
+                    min="0"
+                />
+            </div>
+
+            <div className="form-control">
+                <label className="label">
+                    <span className="label-text">Status</span>
+                </label>
+                <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className="select select-bordered"
+                >
+                    <option value="active">Aktywna</option>
+                    <option value="inactive">Nieaktywna</option>
+                    <option value="maintenance">W konserwacji</option>
+                </select>
+            </div>
+
+            <div className="form-control">
+                <label className="label">
+                    <span className="label-text">Typ</span>
+                </label>
+                <select
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    className="select select-bordered"
+                >
+                    <option value="assembly">Montażowa</option>
+                    <option value="packaging">Pakowanie</option>
+                    <option value="quality_control">Kontrola jakości</option>
+                </select>
+            </div>
+
+            <div className="modal-action">
+                <button type="button" className="btn" onClick={onCancel}>
+                    Anuluj
+                </button>
+                <button type="submit" className="btn btn-primary">
+                    {initialData ? 'Zapisz zmiany' : 'Dodaj linię'}
+                </button>
+            </div>
+        </form>
     );
 } 

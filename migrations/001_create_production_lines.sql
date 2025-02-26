@@ -11,98 +11,49 @@ create table if not exists production_lines (
     next_maintenance timestamp with time zone
 );
 
--- Usuń istniejące polityki
-do $$ 
-begin
-    -- Usuń wszystkie istniejące polityki dla production_lines
-    drop policy if exists "Production lines are viewable by authenticated users" on production_lines;
-    drop policy if exists "Production lines are editable by admins and foremen" on production_lines;
-    drop policy if exists "Enable read access for all authenticated users" on production_lines;
-    drop policy if exists "Enable read access for all users" on production_lines;
-    drop policy if exists "Enable insert for admins" on production_lines;
-    drop policy if exists "Enable update for admins and foremen" on production_lines;
-    drop policy if exists "Enable delete for admins" on production_lines;
+-- Usuń wszystkie istniejące polityki
+drop policy if exists "Production lines are viewable by authenticated users" on production_lines;
+drop policy if exists "Production lines are editable by admins and foremen" on production_lines;
+drop policy if exists "Enable read access for all authenticated users" on production_lines;
+drop policy if exists "Enable read access for all users" on production_lines;
+drop policy if exists "Enable insert for admins" on production_lines;
+drop policy if exists "Enable update for admins and foremen" on production_lines;
+drop policy if exists "Enable delete for admins" on production_lines;
+drop policy if exists "Enable insert for authenticated users" on production_lines;
+drop policy if exists "Enable update for authenticated users" on production_lines;
+drop policy if exists "Enable delete for authenticated users" on production_lines;
 
-    -- Dodaj nowe polityki tylko jeśli nie istnieją
-    if not exists (
-        select 1 from pg_policies 
-        where tablename = 'production_lines' 
-        and policyname = 'Enable read access for all users'
-    ) then
-        create policy "Enable read access for all users"
-            on production_lines
-            for select
-            using (true);
-    end if;
+-- Dodaj nowe, uproszczone polityki
+create policy "Enable read access for all users"
+    on production_lines
+    for select
+    using (true);
 
-    if not exists (
-        select 1 from pg_policies 
-        where tablename = 'production_lines' 
-        and policyname = 'Enable insert for admins'
-    ) then
-        create policy "Enable insert for admins"
-            on production_lines
-            for insert
-            to authenticated
-            with check (
-                auth.jwt() ->> 'role' = 'admin' or
-                exists (
-                    select 1 from users
-                    where users.id = auth.uid()
-                    and users.role = 'admin'
-                )
-            );
-    end if;
+create policy "Enable insert for authenticated users"
+    on production_lines
+    for insert
+    to authenticated
+    with check (true);
 
-    if not exists (
-        select 1 from pg_policies 
-        where tablename = 'production_lines' 
-        and policyname = 'Enable update for admins and foremen'
-    ) then
-        create policy "Enable update for admins and foremen"
-            on production_lines
-            for update
-            to authenticated
-            using (
-                auth.jwt() ->> 'role' in ('admin', 'foreman') or
-                exists (
-                    select 1 from users
-                    where users.id = auth.uid()
-                    and users.role in ('admin', 'foreman')
-                )
-            )
-            with check (
-                auth.jwt() ->> 'role' in ('admin', 'foreman') or
-                exists (
-                    select 1 from users
-                    where users.id = auth.uid()
-                    and users.role in ('admin', 'foreman')
-                )
-            );
-    end if;
+create policy "Enable update for authenticated users"
+    on production_lines
+    for update
+    to authenticated
+    using (true)
+    with check (true);
 
-    if not exists (
-        select 1 from pg_policies 
-        where tablename = 'production_lines' 
-        and policyname = 'Enable delete for admins'
-    ) then
-        create policy "Enable delete for admins"
-            on production_lines
-            for delete
-            to authenticated
-            using (
-                auth.jwt() ->> 'role' = 'admin' or
-                exists (
-                    select 1 from users
-                    where users.id = auth.uid()
-                    and users.role = 'admin'
-                )
-            );
-    end if;
-end $$;
+create policy "Enable delete for authenticated users"
+    on production_lines
+    for delete
+    to authenticated
+    using (true);
 
 -- Włącz RLS
 alter table production_lines enable row level security;
+
+-- Nadaj uprawnienia
+grant all on production_lines to authenticated;
+grant all on production_lines to anon;
 
 -- Dodanie referencji do production_data (jeśli kolumna nie istnieje)
 do $$
@@ -231,6 +182,14 @@ comment on column production_lines.capacity is 'Dzienna wydajność produkcyjna'
 comment on column production_lines.status is 'Status linii (active, inactive, maintenance)';
 comment on column production_lines.type is 'Typ linii produkcyjnej';
 
+-- Dodanie przykładowych danych do tabeli production_lines
+insert into production_lines (name, description, capacity, status, type)
+values 
+    ('Linia A', 'Główna linia montażowa', 1000, 'active', 'assembly'),
+    ('Linia B', 'Linia pakowania', 800, 'active', 'packaging'),
+    ('Linia C', 'Linia kontroli jakości', 500, 'active', 'quality_control')
+on conflict (name) do nothing;
+
 -- Tworzenie tabeli audit_log (jeśli nie istnieje)
 create table if not exists audit_log (
     id uuid default uuid_generate_v4() primary key,
@@ -248,19 +207,72 @@ create index if not exists idx_audit_log_table_name on audit_log(table_name);
 create index if not exists idx_audit_log_record_id on audit_log(record_id);
 create index if not exists idx_audit_log_created_at on audit_log(created_at);
 
--- Dodanie polityk RLS dla audit_log
-create policy "Audit logs are viewable by admins"
+-- Usuń wszystkie istniejące polityki dla audit_log
+drop policy if exists "Audit logs are viewable by admins" on audit_log;
+drop policy if exists "Enable read access for authenticated users" on audit_log;
+drop policy if exists "Enable insert for authenticated users" on audit_log;
+drop policy if exists "Enable update for authenticated users" on audit_log;
+drop policy if exists "Enable delete for authenticated users" on audit_log;
+
+-- Dodaj nowe polityki dla audit_log
+create policy "Enable read access for authenticated users"
     on audit_log
     for select
     to authenticated
-    using (
-        auth.jwt() ->> 'role' = 'admin' or
-        exists (
-            select 1 from users
-            where users.id = auth.uid()
-            and users.role = 'admin'
-        )
-    );
+    using (true);
 
 -- Włączenie RLS dla audit_log
-alter table audit_log enable row level security; 
+alter table audit_log enable row level security;
+
+-- Nadaj uprawnienia dla audit_log
+grant select on audit_log to authenticated;
+
+-- Funkcje do zarządzania liniami produkcyjnymi
+create or replace function create_production_line(
+    p_name text,
+    p_description text,
+    p_capacity integer,
+    p_status text,
+    p_type text
+) returns uuid as $$
+declare
+    v_id uuid;
+begin
+    insert into production_lines (name, description, capacity, status, type)
+    values (p_name, p_description, p_capacity, p_status, p_type)
+    returning id into v_id;
+    
+    return v_id;
+end;
+$$ language plpgsql security definer;
+
+create or replace function update_production_line(
+    p_id uuid,
+    p_name text,
+    p_description text,
+    p_capacity integer,
+    p_status text,
+    p_type text
+) returns void as $$
+begin
+    update production_lines
+    set 
+        name = p_name,
+        description = p_description,
+        capacity = p_capacity,
+        status = p_status,
+        type = p_type
+    where id = p_id;
+end;
+$$ language plpgsql security definer;
+
+create or replace function delete_production_line(p_id uuid) returns void as $$
+begin
+    delete from production_lines where id = p_id;
+end;
+$$ language plpgsql security definer;
+
+-- Nadaj uprawnienia do funkcji
+grant execute on function create_production_line to authenticated;
+grant execute on function update_production_line to authenticated;
+grant execute on function delete_production_line to authenticated; 

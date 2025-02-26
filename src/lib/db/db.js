@@ -726,6 +726,63 @@ export const dbOperations = {
 			console.error('Błąd aktualizacji rekordu obecności:', error);
 			throw error;
 		}
+	},
+
+	async createProductionLine(data) {
+		try {
+			const supabase = getSupabase();
+			const { data: result, error } = await supabase
+				.rpc('create_production_line', {
+					p_name: data.name,
+					p_description: data.description,
+					p_capacity: data.capacity,
+					p_status: data.status,
+					p_type: data.type
+				});
+
+			if (error) throw error;
+			return result;
+		} catch (error) {
+			console.error('Błąd tworzenia linii produkcyjnej:', error);
+			throw error;
+		}
+	},
+
+	async updateProductionLine(id, data) {
+		try {
+			const supabase = getSupabase();
+			const { error } = await supabase
+				.rpc('update_production_line', {
+					p_id: id,
+					p_name: data.name,
+					p_description: data.description,
+					p_capacity: data.capacity,
+					p_status: data.status,
+					p_type: data.type
+				});
+
+			if (error) throw error;
+			return { success: true };
+		} catch (error) {
+			console.error('Błąd aktualizacji linii produkcyjnej:', error);
+			throw error;
+		}
+	},
+
+	async deleteProductionLine(id) {
+		try {
+			const supabase = getSupabase();
+			const { error } = await supabase
+				.rpc('delete_production_line', {
+					p_id: id
+				});
+
+			if (error) throw error;
+			return { success: true };
+		} catch (error) {
+			console.error('Błąd usuwania linii produkcyjnej:', error);
+			throw error;
+		}
 	}
 };
 

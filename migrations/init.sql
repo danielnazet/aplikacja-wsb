@@ -5,21 +5,15 @@ GRANT ALL ON ALL TABLES IN SCHEMA auth TO postgres, anon, authenticated, service
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA auth TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO postgres, anon, authenticated, service_role;
 
--- Dodaj rozszerzenie pgcrypto
+-- Dodaj rozszerzenie pgcrypto jeśli nie istnieje
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. Najpierw usuńmy wszystkie istniejące obiekty (w odwrotnej kolejności zależności)
-DROP POLICY IF EXISTS admin_all ON public.users;
-DROP POLICY IF EXISTS users_view ON public.users;
-DROP POLICY IF EXISTS users_update_own ON public.users;
-DROP VIEW IF EXISTS public.public_users CASCADE;
-DROP TABLE IF EXISTS public.users CASCADE;
+-- 1. Utworzenie typu enum
 DROP TYPE IF EXISTS public.user_role CASCADE;
-
--- 2. Utworzenie typu enum
 CREATE TYPE public.user_role AS ENUM ('admin', 'foreman', 'worker');
 
--- 3. Utworzenie tabeli users
+-- 2. Utworzenie tabeli users
+DROP TABLE IF EXISTS public.users CASCADE;
 CREATE TABLE public.users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT UNIQUE NOT NULL,
@@ -31,8 +25,8 @@ CREATE TABLE public.users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Utworzenie widoku 
-CREATE VIEW public.public_users AS
+-- 3. Utworzenie widoku 
+CREATE OR REPLACE VIEW public.public_users AS
 SELECT 
     id,
     email,
@@ -43,7 +37,7 @@ SELECT
     updated_at
 FROM public.users;
 
--- 5. Utworzenie funkcji pomocniczych
+-- 4. Utworzenie funkcji pomocniczych
 CREATE OR REPLACE FUNCTION public.get_user_by_email(user_email TEXT)
 RETURNS SETOF public.public_users AS $$
     SELECT * FROM public.public_users WHERE email = user_email;
@@ -105,7 +99,7 @@ BEGIN
             first_name = p_first_name,
             last_name = p_last_name,
             role = p_role,
-            password = p_password,
+            password = crypt(p_password, gen_salt('bf')),
             updated_at = CURRENT_TIMESTAMP
         WHERE id = p_user_id
         RETURNING id, email, first_name, last_name, role, created_at, updated_at;
@@ -121,62 +115,69 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 6. Konfiguracja RLS
+-- 5. Konfiguracja RLS i polityk
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
--- Polityka dla admina - pełny dostęp
+-- Dodaj polityki
 CREATE POLICY admin_all ON public.users
     FOR ALL
     TO authenticated
-    USING (true)  -- Pozwól na wszystkie operacje dla uwierzytelnionych użytkowników
+    USING (true)
     WITH CHECK (true);
 
--- Polityka dla INSERT - pozwól na dodawanie nowych użytkowników dla anon
 CREATE POLICY users_insert ON public.users
     FOR INSERT
     TO anon, authenticated
     WITH CHECK (true);
 
--- Polityka dla SELECT - mogą widzieć podstawowe dane innych użytkowników
 CREATE POLICY users_view ON public.users
     FOR SELECT
     TO authenticated
     USING (true);
 
--- Polityka dla UPDATE - mogą aktualizować własne dane
 CREATE POLICY users_update_own ON public.users
     FOR UPDATE
     TO authenticated
     USING (id = auth.uid());
 
--- Dodaj politykę dla anon
 CREATE POLICY anon_access ON public.users
     FOR ALL
     TO anon
     USING (true)
     WITH CHECK (true);
 
--- 7. Dodanie indeksów
-CREATE INDEX idx_users_email ON public.users(email);
-CREATE INDEX idx_users_role ON public.users(role);
+-- 6. Dodanie indeksów
+CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
 
--- 8. Dodanie domyślnego admina (z zahashowanym hasłem)
-INSERT INTO public.users (id, email, first_name, last_name, role, password)
+-- 7. Dodanie domyślnego admina
+INSERT INTO public.users (email, first_name, last_name, role, password)
 VALUES (
-    '00000000-0000-0000-0000-000000000000',
     'admin@admin.com',
     'Admin',
     'User',
     'admin',
-    crypt('Admin123!@#', gen_salt('bf')) -- Nowe, bardziej złożone hasło
+    crypt('Admin123!@#', gen_salt('bf'))
 )
 ON CONFLICT (email) DO NOTHING;
 
--- 9. Nadanie uprawnień
+-- 8. Nadanie uprawnień
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
+-- 9. Funkcja do weryfikacji hasła
+CREATE OR REPLACE FUNCTION public.verify_user(
+    p_email TEXT,
+    p_password TEXT
+)
+RETURNS public.users AS $$
+    SELECT *
+    FROM public.users
+    WHERE email = p_email 
+    AND password = crypt(p_password, password);
+$$ LANGUAGE sql SECURITY DEFINER;
 
 -- 10. Komentarze
 COMMENT ON TABLE public.users IS 'Tabela przechowująca dane użytkowników systemu';
@@ -187,16 +188,4 @@ COMMENT ON COLUMN public.users.last_name IS 'Nazwisko użytkownika';
 COMMENT ON COLUMN public.users.role IS 'Rola użytkownika w systemie';
 COMMENT ON COLUMN public.users.password IS 'Hasło użytkownika (powinno być zahashowane)';
 COMMENT ON COLUMN public.users.created_at IS 'Data utworzenia konta';
-COMMENT ON COLUMN public.users.updated_at IS 'Data ostatniej aktualizacji danych';
-
--- Funkcja do weryfikacji hasła
-CREATE OR REPLACE FUNCTION public.verify_user(
-    p_email TEXT,
-    p_password TEXT
-)
-RETURNS public.users AS $$
-    SELECT *
-    FROM public.users
-    WHERE email = p_email 
-    AND password = crypt(p_password, password);
-$$ LANGUAGE sql SECURITY DEFINER; 
+COMMENT ON COLUMN public.users.updated_at IS 'Data ostatniej aktualizacji danych'; 
