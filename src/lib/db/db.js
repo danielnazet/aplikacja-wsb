@@ -468,6 +468,103 @@ export const dbOperations = {
 		return data;
 	},
 
+	async uploadFailureImage(file, machineId) {
+		try {
+			const supabase = getSupabase();
+			
+			// Sprawdź, czy plik istnieje
+			if (!file) {
+				console.error('Brak pliku do przesłania');
+				throw new Error('Brak pliku do przesłania');
+			}
+			
+			// Sprawdź, czy bucket istnieje
+			const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+			
+			if (bucketsError) {
+				console.error('Błąd podczas sprawdzania bucketów:', bucketsError);
+				// Jeśli jest problem z bucketami, użyj alternatywnej metody
+				return this.uploadFailureImageAsBase64(file);
+			}
+			
+			// Sprawdź, czy bucket 'machine_failures' istnieje
+			const bucketExists = buckets.some(bucket => bucket.name === 'machine_failures');
+			
+			// Jeśli bucket nie istnieje, użyj alternatywnej metody Base64
+			// Nie próbujemy tworzyć bucketu, bo to wymaga uprawnień administratora
+			if (!bucketExists) {
+				console.log('Bucket machine_failures nie istnieje, używam metody Base64');
+				return this.uploadFailureImageAsBase64(file);
+			}
+			
+			// Przygotuj nazwę pliku
+			const fileExt = file.name.split('.').pop();
+			const fileName = `${machineId}_${Date.now()}.${fileExt}`;
+			const filePath = `failure_images/${fileName}`;
+			
+			// Prześlij plik
+			const { data, error } = await supabase.storage
+				.from('machine_failures')
+				.upload(filePath, file, {
+					cacheControl: '3600',
+					upsert: true // Zmieniono na true, aby nadpisać istniejący plik
+				});
+
+			if (error) {
+				console.error('Błąd podczas przesyłania pliku:', error);
+				// Jeśli jest problem z przesyłaniem pliku, użyj alternatywnej metody
+				return this.uploadFailureImageAsBase64(file);
+			}
+
+			// Pobierz publiczny URL do zdjęcia
+			const { data: urlData } = supabase.storage
+				.from('machine_failures')
+				.getPublicUrl(filePath);
+
+			if (!urlData || !urlData.publicUrl) {
+				console.error('Nie udało się uzyskać publicznego URL dla zdjęcia');
+				// Jeśli jest problem z uzyskaniem URL, użyj alternatywnej metody
+				return this.uploadFailureImageAsBase64(file);
+			}
+
+			console.log('Zdjęcie przesłane pomyślnie:', urlData.publicUrl);
+			return urlData.publicUrl;
+		} catch (error) {
+			console.error('Błąd przesyłania zdjęcia:', error);
+			// W przypadku jakiegokolwiek błędu, użyj alternatywnej metody
+			return this.uploadFailureImageAsBase64(file);
+		}
+	},
+	
+	// Alternatywna metoda przesyłania zdjęć jako Base64
+	async uploadFailureImageAsBase64(file) {
+		return new Promise((resolve, reject) => {
+			try {
+				const reader = new FileReader();
+				
+				reader.onloadend = () => {
+					// Sprawdź, czy plik został poprawnie odczytany
+					if (reader.result) {
+						console.log('Zdjęcie zakodowane jako Base64');
+						resolve(reader.result);
+					} else {
+						reject(new Error('Nie udało się odczytać pliku jako Base64'));
+					}
+				};
+				
+				reader.onerror = () => {
+					reject(new Error('Błąd podczas odczytywania pliku jako Base64'));
+				};
+				
+				// Odczytaj plik jako URL danych (Base64)
+				reader.readAsDataURL(file);
+			} catch (error) {
+				console.error('Błąd podczas kodowania zdjęcia jako Base64:', error);
+				reject(error);
+			}
+		});
+	},
+
 	async clearFailureReason(machineId) {
 		const supabase = getSupabase();
 		const { data, error } = await supabase
