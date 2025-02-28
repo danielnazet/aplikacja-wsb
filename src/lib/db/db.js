@@ -840,10 +840,12 @@ export const dbOperations = {
 	async getProductionDataForLine(lineId) {
 		try {
 			const supabase = getSupabase();
+			const today = new Date().toISOString().split("T")[0]; // Pobierz dzisiejszą datę w formacie YYYY-MM-DD
 			const { data, error } = await supabase
 				.from("production_data")
 				.select("*")
 				.eq("production_line_id", lineId)
+				.eq("date", today) // Dodaj filtr dla dzisiejszej daty
 				.order("date", { ascending: false });
 
 			if (error) throw error;

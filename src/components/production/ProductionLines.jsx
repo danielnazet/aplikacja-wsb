@@ -142,12 +142,15 @@ export default function ProductionLines() {
 							</div>
 							{/* Wyświetl dane produkcyjne dla linii */}
 							<div className="mt-4">
-								<h4 className="font-bold">Dane produkcyjne:</h4>
+								<h4 className="font-bold">
+									Dane produkcyjne (dzisiaj):
+								</h4>
 								{line.productionData.map((data) => (
 									<div key={data.id}>
 										<p>Data: {data.date}</p>
 										<p>Plan: {data.planned_units}</p>
 										<p>Wykonanie: {data.actual_units}</p>
+										<p>Typ produktu: {data.product_type}</p>
 									</div>
 								))}
 							</div>

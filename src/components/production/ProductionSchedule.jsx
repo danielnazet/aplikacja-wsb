@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import ProductionDataEntry from "./ProductionDataEntry";
-import { useAuthStore, dbOperations } from "../../lib";
+import { dbOperations } from "../../lib";
 import KPIHistory from "../kpi/KPIHistory";
 import { toast } from "react-hot-toast";
 
 export default function ProductionSchedule() {
-	const user = useAuthStore((state) => state.user);
+	// const user = useAuthStore((state) => state.user);
 	const [selectedDate, setSelectedDate] = useState(new Date());
-	const [viewMode, setViewMode] = useState("week"); // 'day', 'week', 'month'
+	const [viewMode, setViewMode] = useState("day"); // 'day', 'week', 'month'
 	const [productionLines, setProductionLines] = useState([]);
 	const [selectedLine, setSelectedLine] = useState("all");
 	const [scheduleData, setScheduleData] = useState([]);

@@ -27,7 +27,7 @@ import QualityTracking from "./components/quality/QualityTracking";
 import AnalyticsModule from "./components/analytics/AnalyticsModule";
 import ProductionLines from "./components/production/ProductionLines";
 
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from "react-hot-toast";
 
 // Mockowane dane KPI
 const mockKPIData = {
@@ -69,7 +69,7 @@ const mockScheduleData = [
 		quantity: 100,
 		completed: 65,
 		line: "Linia A",
-		status: "in_progress"
+		status: "in_progress",
 	},
 	{
 		id: 2,
@@ -79,7 +79,7 @@ const mockScheduleData = [
 		quantity: 200,
 		completed: 200,
 		line: "Linia B",
-		status: "completed"
+		status: "completed",
 	},
 	{
 		id: 3,
@@ -89,7 +89,7 @@ const mockScheduleData = [
 		quantity: 50,
 		completed: 10,
 		line: "Linia C",
-		status: "delayed"
+		status: "delayed",
 	},
 	{
 		id: 4,
@@ -99,8 +99,8 @@ const mockScheduleData = [
 		quantity: 150,
 		completed: 0,
 		line: "Linia A",
-		status: "planned"
-	}
+		status: "planned",
+	},
 ];
 
 // Mockowane dane obecności
@@ -114,7 +114,7 @@ const mockAttendanceData = [
 		checkOut: "14:00",
 		status: "present",
 		hoursWorked: "7:55",
-		notes: ""
+		notes: "",
 	},
 	{
 		id: 2,
@@ -125,7 +125,7 @@ const mockAttendanceData = [
 		checkOut: null,
 		status: "late",
 		hoursWorked: null,
-		notes: "Spóźnienie - problemy komunikacyjne"
+		notes: "Spóźnienie - problemy komunikacyjne",
 	},
 	{
 		id: 3,
@@ -136,7 +136,7 @@ const mockAttendanceData = [
 		checkOut: null,
 		status: "absent",
 		hoursWorked: null,
-		notes: "Urlop"
+		notes: "Urlop",
 	},
 	{
 		id: 4,
@@ -147,41 +147,16 @@ const mockAttendanceData = [
 		checkOut: "14:00",
 		status: "present",
 		hoursWorked: "8:05",
-		notes: ""
-	}
+		notes: "",
+	},
 ];
 
 // Mockowane dane alertów
-const initialAlerts = [
-	{
-		id: 1,
-		title: "Krytyczny poziom surowca",
-		message: "Stal nierdzewna 304 - pozostało 50kg (minimum: 200kg)",
-		priority: "critical",
-		timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 minut temu
-	},
-	{
-		id: 2,
-		title: "Opóźnienie w produkcji",
-		message: "Linia A - opóźnienie 45 minut w realizacji zamówienia #2024/03/15",
-		priority: "warning",
-		timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minut temu
-	},
-	{
-		id: 3,
-		title: "Przekroczony czas przestoju",
-		message: "Maszyna: Prasa hydrauliczna #1 - przestój ponad 2 godziny",
-		priority: "critical",
-		timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minut temu
-	},
-	{
-		id: 4,
-		title: "Zbliżający się przegląd",
-		message: "Zaplanowany przegląd Frezarki CNC #2 za 2 dni",
-		priority: "warning",
-		timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(), // 1 godzina temu
-	},
-];
+// Zakomentuj lub usuń poniższy kod, aby wyłączyć initialAlerts
+// const initialAlerts = [
+//     { id: 1, message: "Witamy na stronie!", type: "info" },
+//     { id: 2, message: "Sprawdź nowe funkcje!", type: "success" },
+// ];
 
 // Mockowane dane jakości
 const mockQualityData = {
@@ -199,10 +174,10 @@ const mockQualityData = {
 			nokCount: 12,
 			nokReasons: [
 				{ reason: "Wymiary poza tolerancją", count: 8 },
-				{ reason: "Wada powierzchni", count: 4 }
+				{ reason: "Wada powierzchni", count: 4 },
 			],
 			operator: "Jan Kowalski",
-			status: "completed"
+			status: "completed",
 		},
 		{
 			id: 2,
@@ -213,11 +188,11 @@ const mockQualityData = {
 			nokCount: 33,
 			nokReasons: [
 				{ reason: "Błąd montażu", count: 20 },
-				{ reason: "Wada materiału", count: 13 }
+				{ reason: "Wada materiału", count: 13 },
 			],
 			operator: "Anna Nowak",
-			status: "in_progress"
-		}
+			status: "in_progress",
+		},
 	],
 	controls: [
 		{
@@ -231,7 +206,7 @@ const mockQualityData = {
 			unit: "mm",
 			limit: "3.0 ±0.3 mm",
 			result: "pass",
-			inspector: "Marek Nowak"
+			inspector: "Marek Nowak",
 		},
 		{
 			id: 2,
@@ -244,9 +219,9 @@ const mockQualityData = {
 			unit: "N",
 			limit: "min. 900 N",
 			result: "fail",
-			inspector: "Karolina Kowalska"
-		}
-	]
+			inspector: "Karolina Kowalska",
+		},
+	],
 };
 
 // Mockowane dane analityczne
@@ -259,57 +234,57 @@ const mockAnalyticsData = {
 		margin: 30,
 		marginTarget: 35,
 		roi: 25,
-		roiGrowth: 5
+		roiGrowth: 5,
 	},
 	financial: {
 		revenueHistory: [
-			{ date: '2024-01', revenue: 1000000, costs: 700000 },
-			{ date: '2024-02', revenue: 1100000, costs: 750000 },
-			{ date: '2024-03', revenue: 1250000, costs: 875000 },
+			{ date: "2024-01", revenue: 1000000, costs: 700000 },
+			{ date: "2024-02", revenue: 1100000, costs: 750000 },
+			{ date: "2024-03", revenue: 1250000, costs: 875000 },
 		],
 		costStructure: [
-			{ name: 'Materiały', value: 450000 },
-			{ name: 'Robocizna', value: 250000 },
-			{ name: 'Energia', value: 100000 },
-			{ name: 'Inne', value: 75000 },
-		]
+			{ name: "Materiały", value: 450000 },
+			{ name: "Robocizna", value: 250000 },
+			{ name: "Energia", value: 100000 },
+			{ name: "Inne", value: 75000 },
+		],
 	},
 	trends: {
 		productionForecast: [
-			{ date: '2024-Q1', actual: 10000, forecast: null },
-			{ date: '2024-Q2', actual: 12000, forecast: null },
-			{ date: '2024-Q3', actual: null, forecast: 15000 },
-			{ date: '2024-Q4', actual: null, forecast: 18000 },
+			{ date: "2024-Q1", actual: 10000, forecast: null },
+			{ date: "2024-Q2", actual: 12000, forecast: null },
+			{ date: "2024-Q3", actual: null, forecast: 15000 },
+			{ date: "2024-Q4", actual: null, forecast: 18000 },
 		],
 		kpiTrends: [
-			{ date: '2024-01', efficiency: 85, quality: 98, utilization: 75 },
-			{ date: '2024-02', efficiency: 87, quality: 97, utilization: 78 },
-			{ date: '2024-03', efficiency: 90, quality: 99, utilization: 82 },
-		]
+			{ date: "2024-01", efficiency: 85, quality: 98, utilization: 75 },
+			{ date: "2024-02", efficiency: 87, quality: 97, utilization: 78 },
+			{ date: "2024-03", efficiency: 90, quality: 99, utilization: 82 },
+		],
 	},
 	losses: {
 		downtimeReasons: [
-			{ reason: 'Awarie', hours: 24 },
-			{ reason: 'Przezbrojenia', hours: 16 },
-			{ reason: 'Brak materiałów', hours: 8 },
-			{ reason: 'Planowane przeglądy', hours: 12 },
+			{ reason: "Awarie", hours: 24 },
+			{ reason: "Przezbrojenia", hours: 16 },
+			{ reason: "Brak materiałów", hours: 8 },
+			{ reason: "Planowane przeglądy", hours: 12 },
 		],
 		defectReasons: [
-			{ reason: 'Wymiary', count: 150 },
-			{ reason: 'Powierzchnia', count: 80 },
-			{ reason: 'Montaż', count: 60 },
-			{ reason: 'Materiał', count: 40 },
-		]
-	}
+			{ reason: "Wymiary", count: 150 },
+			{ reason: "Powierzchnia", count: 80 },
+			{ reason: "Montaż", count: 60 },
+			{ reason: "Materiał", count: 40 },
+		],
+	},
 };
 
 function App() {
 	const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
 	const { user } = useAuthStore();
 	const { fetchUsers } = useStore();
-	const [alerts, setAlerts] = useState(initialAlerts);
-	const initialize = useAuthStore(state => state.initialize);
-	const loading = useAuthStore(state => state.loading);
+	const [alerts, setAlerts] = useState([]);
+	const initialize = useAuthStore((state) => state.initialize);
+	const loading = useAuthStore((state) => state.loading);
 
 	useEffect(() => {
 		initialize();
@@ -351,7 +326,7 @@ function App() {
 	}
 
 	const handleDismissAlert = (alertId) => {
-		setAlerts(alerts.filter(alert => alert.id !== alertId));
+		setAlerts(alerts.filter((alert) => alert.id !== alertId));
 	};
 
 	return (
@@ -359,42 +334,101 @@ function App() {
 			<Toaster position="top-right" />
 			<div className="min-h-screen bg-base-200">
 				<div className="drawer lg:drawer-open">
-					<input 
-						id="my-drawer-2" 
-						type="checkbox" 
-						className="drawer-toggle" 
+					<input
+						id="my-drawer-2"
+						type="checkbox"
+						className="drawer-toggle"
 						checked={sidebarOpen}
 						onChange={(e) => setSidebarOpen(e.target.checked)}
 					/>
 					<div className="drawer-content flex flex-col">
-			<Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+						<Navbar
+							onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+						/>
 						<main className="flex-1 overflow-y-auto bg-base-200 pt-4">
 							<Routes>
 								<Route path="/" element={<Dashboard />} />
-								<Route path="/employees" element={<EmployeeManagement />} />
-								<Route path="/savings" element={<SavingsProjects />} />
-								<Route path="/tasks" element={<TaskManagement />} />
-								<Route path="/kpi" element={<KPISection data={mockKPIData} showProductionForm={true} />} />
-								<Route path="/machines" element={<MachineStatus machines={mockMachinesData} />} />
-								<Route path="/schedule" element={<ProductionSchedule scheduleData={mockScheduleData} />} />
-								<Route path="/attendance" element={<EmployeeAttendance attendanceData={mockAttendanceData} />} />
-								<Route path="/quality" element={<QualityTracking qualityData={mockQualityData} />} />
-								<Route path="/analytics" element={<AnalyticsModule analyticsData={mockAnalyticsData} />} />
-								<Route 
-									path="/production" 
-									element={
-										(user?.role === 'admin' || user?.role === 'worker') 
-											? <ProductionDataEntry /> 
-											: <Navigate to="/" />
-									} 
+								<Route
+									path="/employees"
+									element={<EmployeeManagement />}
 								/>
-								<Route 
-									path="/production-lines" 
+								<Route
+									path="/savings"
+									element={<SavingsProjects />}
+								/>
+								<Route
+									path="/tasks"
+									element={<TaskManagement />}
+								/>
+								<Route
+									path="/kpi"
 									element={
-										<PrivateRoute roles={['admin', 'foreman']}>
+										<KPISection
+											data={mockKPIData}
+											showProductionForm={true}
+										/>
+									}
+								/>
+								<Route
+									path="/machines"
+									element={
+										<MachineStatus
+											machines={mockMachinesData}
+										/>
+									}
+								/>
+								<Route
+									path="/schedule"
+									element={
+										<ProductionSchedule
+											scheduleData={mockScheduleData}
+										/>
+									}
+								/>
+								<Route
+									path="/attendance"
+									element={
+										<EmployeeAttendance
+											attendanceData={mockAttendanceData}
+										/>
+									}
+								/>
+								<Route
+									path="/quality"
+									element={
+										<QualityTracking
+											qualityData={mockQualityData}
+										/>
+									}
+								/>
+								<Route
+									path="/analytics"
+									element={
+										<AnalyticsModule
+											analyticsData={mockAnalyticsData}
+										/>
+									}
+								/>
+								<Route
+									path="/production"
+									element={
+										user?.role === "admin" ||
+										user?.role === "worker" ? (
+											<ProductionDataEntry />
+										) : (
+											<Navigate to="/" />
+										)
+									}
+								/>
+								<Route
+									path="/production-lines"
+									element={
+										<PrivateRoute
+											roles={["admin", "foreman"]}
+										>
 											<ProductionLines />
 										</PrivateRoute>
-									} 
+									}
 								/>
 							</Routes>
 						</main>
@@ -402,10 +436,7 @@ function App() {
 					</div>
 					<Sidebar isOpen={sidebarOpen} />
 				</div>
-				<AlertSystem 
-					alerts={alerts}
-					onDismiss={handleDismissAlert}
-				/>
+				<AlertSystem alerts={alerts} onDismiss={handleDismissAlert} />
 			</div>
 		</>
 	);
