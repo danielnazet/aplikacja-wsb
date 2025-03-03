@@ -155,9 +155,26 @@ export default function MachineStatus({showOnlyDashboard = false}) {
           reportedBy: `${user.first_name} ${user.last_name}`
         });
       } else {
+        // Znajdź maszynę, aby sprawdzić czy jest przypisana do linii produkcyjnej
+        const machine = machines.find(m => m.id === machineId);
+        const hasProductionLine = machine && machine.production_line_id;
+        const oldStatus = machine ? machine.status : null;
+        
+        // Aktualizuj status maszyny
         const updatedMachine = await dbOperations.updateMachineStatus(machineId, newStatus);
         setMachines(machines.map(m => m.id === machineId ? updatedMachine : m));
+        
+        // Podstawowe powiadomienie o zmianie statusu
         toast.success(`Status maszyny został zmieniony na: ${getStatusText(newStatus)}`);
+        
+        // Dodatkowe powiadomienie o wpływie na produkcję, jeśli maszyna jest przypisana do linii
+        if (hasProductionLine) {
+          if ((newStatus === 'failure' || newStatus === 'service') && oldStatus === 'working') {
+            toast.warning('Uwaga: Zmiana statusu maszyny spowodowała spadek produkcji na linii');
+          } else if (newStatus === 'working' && (oldStatus === 'failure' || oldStatus === 'service')) {
+            toast.success('Przywrócenie maszyny do pracy zwiększyło wydajność produkcji na linii');
+          }
+        }
       }
     } catch (error) {
       console.error('Błąd aktualizacji statusu:', error);
@@ -209,6 +226,11 @@ export default function MachineStatus({showOnlyDashboard = false}) {
         }
       }
 
+      // Znajdź maszynę, aby sprawdzić czy jest przypisana do linii produkcyjnej
+      const machine = machines.find(m => m.id === selectedMachine);
+      const hasProductionLine = machine && machine.production_line_id;
+      const oldStatus = machine ? machine.status : null;
+
       // Zapisz dane awarii
       const saveToastId = toast.loading('Zapisywanie zgłoszenia awarii...');
       try {
@@ -226,6 +248,11 @@ export default function MachineStatus({showOnlyDashboard = false}) {
         setImagePreview(null);
         toast.dismiss(saveToastId);
         toast.success('Awaria została zgłoszona');
+        
+        // Dodatkowe powiadomienie o wpływie na produkcję, jeśli maszyna jest przypisana do linii
+        if (hasProductionLine && oldStatus === 'working') {
+          toast.warning('Uwaga: Zgłoszenie awarii spowodowało spadek produkcji na linii');
+        }
       } catch (saveError) {
         console.error('Błąd zapisywania zgłoszenia awarii:', saveError);
         toast.dismiss(saveToastId);

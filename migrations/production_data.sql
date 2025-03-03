@@ -39,7 +39,7 @@ CREATE POLICY "Enable insert for workers and admins"
             SELECT 1 
             FROM users u 
             WHERE u.id = auth.uid()::uuid 
-            AND u.role IN ('worker', 'admin')
+            AND u.role IN ('worker', 'admin', 'foreman')
             AND u.id = created_by
         )
     );
@@ -206,7 +206,7 @@ BEGIN
             SELECT 1 
             FROM users u 
             WHERE u.id = auth.uid()::uuid 
-            AND u.role IN ('worker', 'admin')
+            AND u.role IN ('worker', 'foreman', 'admin')
         );
 END;
 $$; 

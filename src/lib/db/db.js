@@ -448,6 +448,16 @@ export const dbOperations = {
 			updates.last_service = new Date().toISOString().split("T")[0];
 		}
 
+		// Pobierz aktualny stan maszyny, aby sprawdzić czy zmienił się status
+		const { data: currentMachine, error: fetchError } = await supabase
+			.from("machines")
+			.select("status, production_line_id")
+			.eq("id", machineId)
+			.single();
+			
+		if (fetchError) throw fetchError;
+		
+		// Aktualizuj status maszyny
 		const { data, error } = await supabase
 			.from("machines")
 			.update(updates)
@@ -465,7 +475,96 @@ export const dbOperations = {
 			.single();
 
 		if (error) throw error;
+		
+		// Jeśli maszyna jest przypisana do linii produkcyjnej i zmienił się status na awarię lub serwis
+		// lub z awarii/serwisu na działającą, zaktualizuj dane produkcyjne
+		if (data.production_line_id && 
+			((status === "failure" || status === "service") && currentMachine.status === "working") || 
+			(status === "working" && (currentMachine.status === "failure" || currentMachine.status === "service"))) {
+			
+			try {
+				await this.updateProductionDataForMachineStatusChange(data.production_line_id, status);
+			} catch (prodError) {
+				console.error("Błąd aktualizacji danych produkcyjnych:", prodError);
+				// Nie przerywamy głównej operacji, jeśli aktualizacja danych produkcyjnych się nie powiedzie
+			}
+		}
+		
 		return data;
+	},
+	
+	// Nowa funkcja do aktualizacji danych produkcyjnych po zmianie statusu maszyny
+	async updateProductionDataForMachineStatusChange(lineId, machineStatus) {
+		const supabase = getSupabase();
+		const today = new Date().toISOString().split("T")[0];
+		
+		// Pobierz dzisiejsze dane produkcyjne dla linii
+		const { data: productionData, error: fetchError } = await supabase
+			.from("production_data")
+			.select("*")
+			.eq("production_line_id", lineId)
+			.eq("date", today);
+			
+		if (fetchError) throw fetchError;
+		
+		// Jeśli nie ma danych produkcyjnych na dziś, nie ma co aktualizować
+		if (!productionData || productionData.length === 0) return;
+		
+		// Pobierz informacje o linii produkcyjnej
+		const { data: lineData, error: lineError } = await supabase
+			.from("production_lines")
+			.select("*")
+			.eq("id", lineId)
+			.single();
+			
+		if (lineError) throw lineError;
+		
+		// Pobierz wszystkie maszyny przypisane do tej linii
+		const { data: machines, error: machinesError } = await supabase
+			.from("machines")
+			.select("id, status")
+			.eq("production_line_id", lineId);
+			
+		if (machinesError) throw machinesError;
+		
+		// Oblicz procent sprawnych maszyn na linii
+		const totalMachines = machines.length;
+		const workingMachines = machines.filter(m => m.status === "working").length;
+		const workingPercentage = totalMachines > 0 ? workingMachines / totalMachines : 1;
+		
+		// Aktualizuj dane produkcyjne dla każdego rekordu z dzisiaj
+		for (const record of productionData) {
+			// Jeśli maszyna przechodzi w stan awarii/serwisu, zmniejsz actual_units
+			// Jeśli maszyna wraca do pracy, zwiększ actual_units (ale nie więcej niż planned_units)
+			let newActualUnits;
+			
+			if (machineStatus === "failure" || machineStatus === "service") {
+				// Zmniejsz actual_units proporcjonalnie do liczby działających maszyn
+				newActualUnits = Math.floor(record.actual_units * workingPercentage);
+			} else if (machineStatus === "working") {
+				// Zwiększ actual_units, ale nie więcej niż planned_units
+				const maxIncrease = Math.min(
+					record.planned_units - record.actual_units,
+					Math.floor(record.planned_units / totalMachines)
+				);
+				newActualUnits = Math.min(record.planned_units, record.actual_units + maxIncrease);
+			} else {
+				continue; // Jeśli status jest inny, nie zmieniaj danych produkcyjnych
+			}
+			
+			// Aktualizuj rekord w bazie danych
+			const { error: updateError } = await supabase
+				.from("production_data")
+				.update({
+					actual_units: newActualUnits,
+					updated_at: new Date().toISOString()
+				})
+				.eq("id", record.id);
+				
+			if (updateError) {
+				console.error(`Błąd aktualizacji danych produkcyjnych dla rekordu ${record.id}:`, updateError);
+			}
+		}
 	},
 
 	async uploadFailureImage(file, machineId) {
@@ -595,11 +694,15 @@ export const dbOperations = {
 				.select("*")
 				.order("name");
 
-			if (error) throw error;
-			return data;
+			if (error) {
+				console.error("Błąd pobierania linii produkcyjnych:", error);
+				return [];
+			}
+			
+			return data || [];
 		} catch (error) {
 			console.error("Błąd pobierania linii produkcyjnych:", error);
-			throw error;
+			return [];
 		}
 	},
 
@@ -945,14 +1048,18 @@ export const dbOperations = {
 				.eq("date", today) // Dodaj filtr dla dzisiejszej daty
 				.order("date", { ascending: false });
 
-			if (error) throw error;
-			return data;
+			if (error) {
+				console.error("Błąd pobierania danych produkcyjnych:", error);
+				return []; // Zwróć pustą tablicę w przypadku błędu
+			}
+			
+			return data || []; // Zwróć dane lub pustą tablicę, jeśli data jest null/undefined
 		} catch (error) {
 			console.error(
 				"Błąd pobierania danych produkcyjnych dla linii:",
 				error
 			);
-			throw error;
+			return []; // Zwróć pustą tablicę w przypadku wyjątku
 		}
 	},
 };
