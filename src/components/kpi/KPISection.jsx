@@ -260,7 +260,7 @@ export default function KPISection({ showOnlyDashboard = false }) {
 
   if (showOnlyDashboard) {
   return (
-    <div className="card bg-base-100 shadow-xl mb-6">
+    <div className="card bg-base-100 shadow-xl mb-6 g-4">
       <div className="card-body">
         <h3 className="card-title">Kluczowe Wskaźniki Wydajności (KPI)</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

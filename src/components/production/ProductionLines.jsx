@@ -272,7 +272,8 @@ export default function ProductionLines() {
 										<p>Brak danych produkcyjnych na dzisiaj</p>
 									)}
 								</div>
-								{user?.role === "admin" && (
+								{/* Przyciski akcji */}
+								{user?.role !== "worker" && (
 									<div className="card-actions justify-end mt-4">
 										<button
 											className="btn btn-sm btn-outline"
@@ -280,12 +281,14 @@ export default function ProductionLines() {
 										>
 											Edytuj
 										</button>
-										<button
-											className="btn btn-sm btn-outline btn-error"
-											onClick={() => handleDelete(line.id)}
-										>
-											Usuń
-										</button>
+										{user?.role === "admin" && (
+											<button
+												className="btn btn-sm btn-error"
+												onClick={() => handleDelete(line.id)}
+											>
+												Usuń
+											</button>
+										)}
 									</div>
 								)}
 							</div>

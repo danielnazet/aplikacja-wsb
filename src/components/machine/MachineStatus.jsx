@@ -170,7 +170,7 @@ export default function MachineStatus({showOnlyDashboard = false}) {
         // Dodatkowe powiadomienie o wpływie na produkcję, jeśli maszyna jest przypisana do linii
         if (hasProductionLine) {
           if ((newStatus === 'failure' || newStatus === 'service') && oldStatus === 'working') {
-            toast.warning('Uwaga: Zmiana statusu maszyny spowodowała spadek produkcji na linii');
+            toast.error('Uwaga: Zmiana statusu maszyny spowodowała spadek produkcji na linii');
           } else if (newStatus === 'working' && (oldStatus === 'failure' || oldStatus === 'service')) {
             toast.success('Przywrócenie maszyny do pracy zwiększyło wydajność produkcji na linii');
           }

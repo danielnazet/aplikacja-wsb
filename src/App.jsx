@@ -423,9 +423,7 @@ function App() {
 								<Route
 									path="/production-lines"
 									element={
-										<PrivateRoute
-											roles={["admin", "foreman"]}
-										>
+										<PrivateRoute roles={["admin", "foreman", "worker"]}>
 											<ProductionLines />
 										</PrivateRoute>
 									}

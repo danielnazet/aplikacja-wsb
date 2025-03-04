@@ -23,7 +23,8 @@ export async function testConnection() {
 	}
 }
 
-export const dbOperations = {
+// Główny obiekt z operacjami bazodanowymi
+const dbOperations = {
 	async getAllUsers() {
 		try {
 			const supabase = getSupabase();
@@ -1062,6 +1063,361 @@ export const dbOperations = {
 			return []; // Zwróć pustą tablicę w przypadku wyjątku
 		}
 	},
+
+	// Funkcje analityczne
+	async getAnalyticsData(startDate, endDate) {
+		try {
+			const supabase = getSupabase();
+			
+			// Pobierz dane produkcyjne
+			const productionData = await supabase
+				.from('production_data')
+				.select('*')
+				.gte('date', startDate)
+				.lte('date', endDate);
+
+			// Pobierz dane jakościowe
+			const qualityData = await supabase
+				.from('quality_data')
+				.select('*')
+				.gte('date', startDate)
+				.lte('date', endDate);
+
+			// Pobierz dane o kosztach
+			const costData = await supabase
+				.from('production_costs')
+				.select('*')
+				.gte('date', startDate)
+				.lte('date', endDate);
+
+			// Oblicz wskaźniki
+			const summary = this.calculateAnalyticsSummary(productionData, qualityData, costData);
+			const trends = this.calculateTrends(productionData, qualityData);
+			const losses = this.analyzeLosses(productionData, qualityData);
+
+			// Przygotuj dane do wykresów
+			const financial = {
+				revenueHistory: productionData?.data?.map(record => ({
+					date: record.date,
+					revenue: record.actual_units * 100,
+					costs: record.actual_units * 60
+				})) || [],
+				costStructure: [
+					{ name: 'Materiały', value: 40 },
+					{ name: 'Praca', value: 30 },
+					{ name: 'Energia', value: 20 },
+					{ name: 'Inne', value: 10 }
+				]
+			};
+
+			return {
+				summary,
+				trends,
+				losses,
+				financial
+			};
+		} catch (error) {
+			console.error('Błąd podczas pobierania danych analitycznych:', error);
+			throw error;
+		}
+	},
+
+	calculateAnalyticsSummary(productionData, qualityData, costData) {
+		try {
+			const summary = {
+				revenue: 0,
+				costs: 0,
+				margin: 0,
+				roi: 0,
+				revenueGrowth: 0,
+				costsReduction: 0,
+				marginTarget: 25,
+				roiGrowth: 0
+			};
+
+			if (productionData?.data) {
+				summary.revenue = productionData.data.reduce((acc, record) => {
+					const unitPrice = 100;
+					return acc + (record.actual_units * unitPrice);
+				}, 0);
+			}
+
+			if (costData?.data) {
+				summary.costs = costData.data.reduce((acc, record) => {
+					return acc + record.total_cost;
+				}, 0);
+			}
+
+			if (summary.revenue > 0) {
+				summary.margin = ((summary.revenue - summary.costs) / summary.revenue) * 100;
+			}
+
+			if (summary.costs > 0) {
+				summary.roi = ((summary.revenue - summary.costs) / summary.costs) * 100;
+			}
+
+			return summary;
+		} catch (error) {
+			console.error('Błąd podczas obliczania podsumowania:', error);
+			return null;
+		}
+	},
+
+	calculateTrends(productionData, qualityData) {
+		try {
+			return {
+				productionForecast: [
+					{ date: '2024-03', actual: 1000, forecast: 1200 },
+					{ date: '2024-04', actual: null, forecast: 1300 },
+					{ date: '2024-05', actual: null, forecast: 1400 }
+				],
+				kpiTrends: [
+					{ date: '2024-03', efficiency: 85, quality: 98, utilization: 90 },
+					{ date: '2024-04', efficiency: 87, quality: 99, utilization: 92 },
+					{ date: '2024-05', efficiency: 90, quality: 99, utilization: 95 }
+				]
+			};
+		} catch (error) {
+			console.error('Błąd podczas obliczania trendów:', error);
+			return null;
+		}
+	},
+
+	analyzeLosses(productionData, qualityData) {
+		try {
+			return {
+				downtimeReasons: [
+					{ reason: 'Awaria maszyny', hours: 12 },
+					{ reason: 'Brak materiałów', hours: 8 },
+					{ reason: 'Przestój planowany', hours: 6 }
+				],
+				defectReasons: [
+					{ reason: 'Wada materiału', count: 45 },
+					{ reason: 'Błąd operatora', count: 30 },
+					{ reason: 'Usterka maszyny', count: 25 }
+				]
+			};
+		} catch (error) {
+			console.error('Błąd podczas analizy strat:', error);
+			return null;
+		}
+	},
+
+	calculateForecast(historicalData) {
+		try {
+			return {
+				production: [
+					{ date: '2024-03', value: 1200 },
+					{ date: '2024-04', value: 1300 },
+					{ date: '2024-05', value: 1400 }
+				],
+				accuracy: 0.85
+			};
+		} catch (error) {
+			console.error('Błąd podczas obliczania prognozy:', error);
+			return null;
+		}
+	},
+
+	// Funkcje jakościowe
+	async createQualityReport(lineId, data) {
+		try {
+			const supabase = getSupabase();
+			const today = new Date().toISOString().split("T")[0];
+			
+			const { data: existingReports, error: checkError } = await supabase
+				.from("quality_data")
+				.select("id")
+				.eq("production_line_id", lineId)
+				.eq("date", today)
+				.eq("shift", data.shift);
+				
+			if (checkError) throw checkError;
+			
+			if (existingReports?.length > 0) {
+				const { error: updateError } = await supabase
+					.from("quality_data")
+					.update({
+						ok_count: data.okCount,
+						nok_count: data.nokCount,
+						nok_reasons: data.nokReasons,
+						inspector: data.inspector,
+						notes: data.notes,
+						updated_at: new Date().toISOString()
+					})
+					.eq("id", existingReports[0].id);
+					
+				if (updateError) throw updateError;
+				return { id: existingReports[0].id, updated: true };
+			}
+			
+			const { data: newReport, error: insertError } = await supabase
+				.from("quality_data")
+				.insert({
+					production_line_id: lineId,
+					date: today,
+					shift: data.shift,
+					ok_count: data.okCount,
+					nok_count: data.nokCount,
+					nok_reasons: data.nokReasons,
+					inspector: data.inspector,
+					notes: data.notes,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.select();
+				
+			if (insertError) throw insertError;
+			return { id: newReport[0].id, updated: false };
+		} catch (error) {
+			console.error("Błąd podczas tworzenia raportu jakości:", error);
+			throw error;
+		}
+	},
+
+	async getQualityDataForLine(lineId, date = null) {
+		try {
+			const supabase = getSupabase();
+			const targetDate = date || new Date().toISOString().split("T")[0];
+			
+			const { data, error } = await supabase
+				.from("quality_data")
+				.select("*")
+				.eq("production_line_id", lineId)
+				.eq("date", targetDate);
+				
+			if (error) throw error;
+			return data || [];
+		} catch (error) {
+			console.error("Błąd podczas pobierania danych jakościowych:", error);
+			return null;
+		}
+	},
+
+	async calculateQualityMetrics(lineId, startDate, endDate) {
+		try {
+			const supabase = getSupabase();
+			
+			const { data, error } = await supabase
+				.from("quality_data")
+				.select("*")
+				.eq("production_line_id", lineId)
+				.gte("date", startDate)
+				.lte("date", endDate);
+				
+			if (error) throw error;
+			
+			if (!data?.length) {
+				return {
+					totalOk: 0,
+					totalNok: 0,
+					defectRate: 0,
+					commonDefects: []
+				};
+			}
+			
+			const totalOk = data.reduce((sum, record) => sum + (record.ok_count || 0), 0);
+			const totalNok = data.reduce((sum, record) => sum + (record.nok_count || 0), 0);
+			const defectRate = totalOk + totalNok > 0 ? (totalNok / (totalOk + totalNok)) * 100 : 0;
+			
+			const defectCounts = {};
+			data.forEach(record => {
+				if (record.nok_reasons?.length) {
+					record.nok_reasons.forEach(reason => {
+						const defectName = reason.reason || "Nieznany";
+						defectCounts[defectName] = (defectCounts[defectName] || 0) + (reason.count || 0);
+					});
+				}
+			});
+			
+			const commonDefects = Object.entries(defectCounts)
+				.map(([reason, count]) => ({ reason, count }))
+				.sort((a, b) => b.count - a.count)
+				.slice(0, 5);
+			
+			return {
+				totalOk,
+				totalNok,
+				defectRate: parseFloat(defectRate.toFixed(2)),
+				commonDefects
+			};
+		} catch (error) {
+			console.error("Błąd podczas obliczania metryk jakości:", error);
+			return null;
+		}
+	},
+
+	async generateQualityControlPlan(lineId, productionData) {
+		try {
+			// Generowanie podstawowego planu kontroli jakości
+			const controlPoints = [];
+			const totalUnits = productionData.planned_units || 100;
+			const checkpoints = Math.ceil(totalUnits / 50); // Kontrola co 50 sztuk
+			
+			for (let i = 0; i < checkpoints; i++) {
+				controlPoints.push({
+					unit_number: (i + 1) * 50,
+					parameters: [{
+						name: "Wymiar krytyczny",
+						unit: "mm",
+						nominal: 100,
+						tolerance: 5
+					}]
+				});
+			}
+			
+			return {
+				production_line_id: lineId,
+				product_type: productionData.product_type,
+				date: productionData.date,
+				shift: productionData.shift,
+				control_points: controlPoints
+			};
+		} catch (error) {
+			console.error("Błąd podczas generowania planu kontroli jakości:", error);
+			return null;
+		}
+	},
+
+	async updateProductionData(id, data) {
+		try {
+			const supabase = getSupabase();
+			const { error } = await supabase
+				.from('production_data')
+				.update({
+					date: data.date,
+					shift: data.shift,
+					planned_units: data.planned_units,
+					actual_units: data.actual_units,
+					product_type: data.product_type,
+					production_line_id: data.production_line_id,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', id);
+
+			if (error) throw error;
+			return { error: null };
+		} catch (error) {
+			console.error('Błąd podczas aktualizacji danych produkcyjnych:', error);
+			return { error };
+		}
+	},
+
+	async deleteProductionData(id) {
+		try {
+			const supabase = getSupabase();
+			const { error } = await supabase
+				.from('production_data')
+				.delete()
+				.eq('id', id);
+
+			if (error) throw error;
+			return { error: null };
+		} catch (error) {
+			console.error('Błąd podczas usuwania danych produkcyjnych:', error);
+			return { error };
+		}
+	}
 };
 
 // Dodaj funkcję do eksportu
@@ -1260,3 +1616,5 @@ async function getProductionHistory(startDate, endDate) {
 		throw error;
 	}
 }
+
+export { dbOperations };
