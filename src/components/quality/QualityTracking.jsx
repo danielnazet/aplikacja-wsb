@@ -3,6 +3,7 @@ import { dbOperations } from "../../lib";
 import { toast } from "react-hot-toast";
 import { useAuthStore } from "../../lib/store";
 import * as XLSX from 'xlsx';
+import { FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 
 export default function QualityTracking() {
   const user = useAuthStore((state) => state.user);
@@ -705,13 +706,24 @@ export default function QualityTracking() {
                   <label className="label">
                     <span className="label-text">Produkt</span>
                   </label>
-                  <input 
-                    type="text" 
-                    className="input input-bordered w-full"
+                  <select
+                    className="select select-bordered w-full"
                     value={newReport.product}
-                    onChange={(e) => setNewReport({...newReport, product: e.target.value})}
-                    placeholder="Nazwa produktu"
-                  />
+                    onChange={(e) => setNewReport(prev => ({
+                      ...prev,
+                      product: e.target.value
+                    }))}
+                    disabled={!productionSchedule}
+                  >
+                    <option value="" disabled>
+                      {productionSchedule ? "Wybierz produkt" : "Brak zaplanowanej produkcji"}
+                    </option>
+                    {productionSchedule && (
+                      <option value={productionSchedule.product_type}>
+                        {productionSchedule.product_type}
+                      </option>
+                    )}
+                  </select>
                 </div>
                 
                 <div className="form-control">

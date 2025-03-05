@@ -1220,57 +1220,114 @@ const dbOperations = {
 	},
 
 	// Funkcje jakościowe
-	async createQualityReport(lineId, data) {
+	async createQualityReport(data) {
 		try {
+			// Szczegółowe logowanie otrzymanych danych
+			console.log("Otrzymane dane:", {
+				lineId: data?.lineId,
+				shift: data?.shift,
+				okCount: data?.okCount,
+				nokCount: data?.nokCount,
+				nokReasons: data?.nokReasons,
+				inspector: data?.inspector,
+				notes: data?.notes,
+				product: data?.product
+			});
+
+			// Sprawdzenie czy dane nie są undefined
+			if (!data) {
+				throw new Error('Brak danych do raportu');
+			}
+
+			// Konwersja i walidacja danych
+			const validatedData = {
+				production_line_id: data.lineId,
+				date: new Date().toISOString().split('T')[0],
+				shift: data.shift?.toString(),
+				ok_count: parseInt(data.okCount) || 0,
+				nok_count: parseInt(data.nokCount) || 0,
+				nok_reasons: Array.isArray(data.nokReasons) ? data.nokReasons : [],
+				inspector: data.inspector?.toString() || '',
+				notes: data.notes?.toString() || '',
+				product: data.product || 'default_product',
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			};
+
+			// Sprawdzenie wymaganych pól
+			if (!validatedData.production_line_id) {
+				throw new Error('Brak ID linii produkcyjnej');
+			}
+			if (!validatedData.shift) {
+				throw new Error('Brak zmiany');
+			}
+			if (!validatedData.product) {
+				throw new Error('Brak produktu');
+			}
+
+			console.log("Zwalidowane dane do zapisu:", validatedData);
+
 			const supabase = getSupabase();
-			const today = new Date().toISOString().split("T")[0];
-			
-			const { data: existingReports, error: checkError } = await supabase
+
+			// Sprawdzenie czy raport już istnieje
+			const { data: existingReport, error: checkError } = await supabase
 				.from("quality_data")
 				.select("id")
-				.eq("production_line_id", lineId)
-				.eq("date", today)
-				.eq("shift", data.shift);
-				
-			if (checkError) throw checkError;
-			
-			if (existingReports?.length > 0) {
-				const { error: updateError } = await supabase
-					.from("quality_data")
-					.update({
-						ok_count: data.okCount,
-						nok_count: data.nokCount,
-						nok_reasons: data.nokReasons,
-						inspector: data.inspector,
-						notes: data.notes,
-						updated_at: new Date().toISOString()
-					})
-					.eq("id", existingReports[0].id);
-					
-				if (updateError) throw updateError;
-				return { id: existingReports[0].id, updated: true };
+				.eq("production_line_id", validatedData.production_line_id)
+				.eq("date", validatedData.date)
+				.eq("shift", validatedData.shift)
+				.maybeSingle();
+
+			if (checkError) {
+				console.error("Błąd sprawdzania istniejącego raportu:", checkError);
+				throw checkError;
 			}
-			
+
+			if (existingReport) {
+				// Aktualizacja istniejącego raportu
+				const { data: updated, error: updateError } = await supabase
+					.from("quality_data")
+					.update(validatedData)
+					.eq("id", existingReport.id)
+					.select()
+					.single();
+
+				if (updateError) {
+					console.error("Błąd aktualizacji raportu:", updateError);
+					throw updateError;
+				}
+
+				return { id: existingReport.id, updated: true };
+			}
+
+			// Tworzenie nowego raportu
+			console.log("Tworzenie nowego raportu z danymi:", validatedData);
 			const { data: newReport, error: insertError } = await supabase
 				.from("quality_data")
-				.insert({
-					production_line_id: lineId,
-					date: today,
-					shift: data.shift,
-					ok_count: data.okCount,
-					nok_count: data.nokCount,
-					nok_reasons: data.nokReasons,
-					inspector: data.inspector,
-					notes: data.notes,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				})
-				.select();
-				
-			if (insertError) throw insertError;
-			return { id: newReport[0].id, updated: false };
+				.insert([validatedData])
+				.select()
+				.single();
+
+			if (insertError) {
+				console.error("Błąd dodawania nowego raportu:", {
+					message: insertError.message,
+					code: insertError.code,
+					details: insertError.details,
+					hint: insertError.hint,
+					data: validatedData
+				});
+				throw insertError;
+			}
+
+			return { id: newReport.id, updated: false };
 		} catch (error) {
-			console.error("Błąd podczas tworzenia raportu jakości:", error);
+			console.error("Szczegóły błędu podczas tworzenia raportu jakości:", {
+				message: error.message,
+				code: error.code,
+				details: error.details,
+				hint: error.hint,
+				data: error.data
+			});
 			throw error;
 		}
 	},
@@ -1416,6 +1473,26 @@ const dbOperations = {
 		} catch (error) {
 			console.error('Błąd podczas usuwania danych produkcyjnych:', error);
 			return { error };
+		}
+	},
+
+	async deleteQualityReport(reportId) {
+		try {
+			const supabase = getSupabase();
+			const { error } = await supabase
+				.from("quality_data")
+				.delete()
+				.eq("id", reportId);
+
+			if (error) {
+				console.error("Błąd podczas usuwania raportu:", error);
+				throw error;
+			}
+
+			return { success: true };
+		} catch (error) {
+			console.error("Błąd podczas usuwania raportu jakości:", error);
+			throw error;
 		}
 	}
 };
